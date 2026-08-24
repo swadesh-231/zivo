@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl()),
   title: {
-    default: "Zivo — Build apps by describing them",
+    default: "Zivo",
     template: "%s · Zivo",
   },
   description:
