@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { AFTER_SIGN_IN_PATH } from "@/lib/auth-config";
 import { signInWithGoogle } from "@/lib/auth-client";
-import { PROMPT_PARAM, withPrompt } from "@/lib/prompt-handoff";
+import { PROMPT_PARAM, withPrompt } from "@/prompt/handoff";
 
 function GoogleMark() {
   return (

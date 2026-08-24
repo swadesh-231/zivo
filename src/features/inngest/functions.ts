@@ -18,7 +18,11 @@ import {
   MessageType,
 } from "@/db/schema";
 import { isFailoverError, listModelCandidates, type ModelCandidate } from "@/lib/ai";
-import { FRAGMENT_TITLE_PROMPT, PROMPT, RESPONSE_PROMPT } from "@/lib/prompt";
+import {
+  CODE_AGENT_PROMPT,
+  FRAGMENT_TITLE_PROMPT,
+  RESPONSE_PROMPT,
+} from "@/prompt";
 import { inngest } from "./client";
 import { BUILD_EVENT_NAME } from "./dispatch";
 import {
@@ -282,7 +286,7 @@ export const codeAgentFunction = inngest.createFunction(
         const codeAgent = createAgent<CodeAgentState>({
           name: `code-agent-${candidate.provider}`,
           description: "Builds and edits the application inside the sandbox",
-          system: PROMPT,
+          system: CODE_AGENT_PROMPT,
           model: candidate.create(),
           tools: buildTools(),
           lifecycle: {

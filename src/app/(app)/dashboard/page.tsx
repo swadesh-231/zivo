@@ -4,7 +4,7 @@ import { PromptComposer } from "@/components/dashboard/prompt-composer";
 import { ProjectList } from "@/components/dashboard/project-list";
 import { GridBackdrop } from "@/components/marketing/grid-backdrop";
 import { requireUser } from "@/features/auth/session";
-import { PROMPT_PARAM, readPrompt } from "@/lib/prompt-handoff";
+import { PROMPT_PARAM, readPrompt } from "@/prompt/handoff";
 
 export const metadata: Metadata = {
   title: "Projects",

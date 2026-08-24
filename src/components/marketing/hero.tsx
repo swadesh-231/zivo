@@ -7,7 +7,7 @@ import { ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SIGN_IN_PATH } from "@/lib/auth-config";
-import { withPrompt } from "@/lib/prompt-handoff";
+import { withPrompt } from "@/prompt/handoff";
 
 const EXAMPLES = [
   "An analytics dashboard with filters and a revenue chart",
