@@ -6,7 +6,6 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { appUrl, optionalEnv, requiredEnv } from "@/lib/env";
 import { AUTH_COOKIE_PREFIX } from "@/lib/auth-config";
-import { sendEmail } from "@/lib/mail";
 
 const DAY = 60 * 60 * 24;
 
@@ -40,35 +39,6 @@ export const auth = betterAuth({
     cookieCache: {
       enabled: true,
       maxAge: 60 * 5,
-    },
-  },
-  user: {
-    changeEmail: {
-      enabled: true,
-      updateEmailWithoutVerification: true,
-      sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
-        await sendEmail({
-          to: user.email,
-          subject: "Confirm your new Zivo email address",
-          heading: "Confirm your email change",
-          body: `You asked to change the email on your Zivo account to ${newEmail}. Confirm the change to finish updating your account.`,
-          actionLabel: "Confirm email change",
-          actionUrl: url,
-        });
-      },
-    },
-  },
-  emailVerification: {
-    autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({ user, url }) => {
-      await sendEmail({
-        to: user.email,
-        subject: "Verify your Zivo email address",
-        heading: "Verify your email",
-        body: "Confirm this address to keep using your Zivo account without interruption.",
-        actionLabel: "Verify email",
-        actionUrl: url,
-      });
     },
   },
   advanced: {

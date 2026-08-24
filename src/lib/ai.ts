@@ -122,55 +122,40 @@ export function listConfiguredProviders() {
   );
 }
 
-function resolveProvider(role: AgentRole) {
+function orderedProviders(role: AgentRole) {
   const requested =
     process.env[ROLE_ENV[role].provider] ?? process.env.AI_PROVIDER;
 
-  if (requested) {
-    const provider = findProvider(requested);
-    const apiKey = readKey(provider.envKeys);
-
-    if (!apiKey) {
-      throw new Error(
-        `AI provider "${provider.name}" is selected but none of ${provider.envKeys.join(" / ")} is set.`,
-      );
-    }
-
-    return { provider, apiKey };
-  }
-
-  for (const provider of PROVIDERS) {
-    const apiKey = readKey(provider.envKeys);
-    if (apiKey) return { provider, apiKey };
-  }
-
-  throw new Error(
-    `No AI provider key found. Set one of: ${PROVIDERS.flatMap((provider) => provider.envKeys).join(", ")}.`,
+  const configured = PROVIDERS.filter((provider) =>
+    Boolean(readKey(provider.envKeys)),
   );
+
+  if (!requested) return configured;
+
+  const pinned = findProvider(requested);
+
+  if (!readKey(pinned.envKeys)) {
+    throw new Error(
+      `AI provider "${pinned.name}" is selected but none of ${pinned.envKeys.join(" / ")} is set.`,
+    );
+  }
+
+  return [pinned, ...configured.filter((p) => p.name !== pinned.name)];
 }
 
 function resolveModelName(role: AgentRole, provider: ProviderDefinition) {
-  return (
-    process.env[ROLE_ENV[role].model] ??
-    process.env.AI_MODEL ??
-    provider.defaultModel
-  );
+  const pinned =
+    process.env[ROLE_ENV[role].provider] ?? process.env.AI_PROVIDER;
+  const explicit = process.env[ROLE_ENV[role].model] ?? process.env.AI_MODEL;
+
+  if (explicit && (!pinned || pinned.toLowerCase() === provider.name)) {
+    return explicit;
+  }
+
+  return provider.defaultModel;
 }
 
-export function describeModel(role: AgentRole = "code") {
-  const { provider } = resolveProvider(role);
-
-  return {
-    provider: provider.name,
-    label: provider.label,
-    model: resolveModelName(role, provider),
-  };
-}
-
-export function resolveModel(role: AgentRole = "code"): AiAdapter.Any {
-  const { provider, apiKey } = resolveProvider(role);
-  const model = resolveModelName(role, provider);
-
+function buildAdapter(provider: ProviderDefinition, model: string, apiKey: string) {
   switch (provider.kind) {
     case "openai":
       return openai({
@@ -199,4 +184,53 @@ export function resolveModel(role: AgentRole = "code"): AiAdapter.Any {
     case "grok":
       return grok({ model, apiKey, defaultParameters: { temperature: 0 } });
   }
+}
+
+export type ModelCandidate = {
+  provider: string;
+  label: string;
+  model: string;
+  create: () => AiAdapter.Any;
+};
+
+export function listModelCandidates(role: AgentRole = "code"): ModelCandidate[] {
+  const providers = orderedProviders(role);
+
+  if (providers.length === 0) {
+    throw new Error(
+      `No AI provider key found. Set one of: ${PROVIDERS.flatMap((p) => p.envKeys).join(", ")}.`,
+    );
+  }
+
+  return providers.map((provider) => {
+    const model = resolveModelName(role, provider);
+    const apiKey = readKey(provider.envKeys) as string;
+
+    return {
+      provider: provider.name,
+      label: provider.label,
+      model,
+      create: () => buildAdapter(provider, model, apiKey),
+    };
+  });
+}
+
+export function describeModel(role: AgentRole = "code") {
+  const [first] = listModelCandidates(role);
+
+  return { provider: first.provider, label: first.label, model: first.model };
+}
+
+export function resolveModel(role: AgentRole = "code"): AiAdapter.Any {
+  return listModelCandidates(role)[0].create();
+}
+
+const FAILOVER_PATTERN =
+  /\b(4\d\d|5\d\d)\b|rate.?limit|quota|insufficient|credit|unauthorized|invalid.?api.?key|not.?found|overloaded|unavailable|timeout|ECONNRESET|ETIMEDOUT|MALFORMED_FUNCTION_CALL/i;
+
+export function isFailoverError(error: unknown) {
+  const message =
+    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+
+  return FAILOVER_PATTERN.test(message);
 }

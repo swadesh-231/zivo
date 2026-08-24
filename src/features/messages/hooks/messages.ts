@@ -3,7 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { unwrap } from "@/lib/action-result";
-import { createMessage, getMessages, type ProjectMessage } from "../actions";
+import {
+  createMessage,
+  getBuildEvents,
+  getMessages,
+  type ProjectMessage,
+} from "../actions";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -13,6 +18,7 @@ export type BuildState = "idle" | "building" | "stalled";
 
 export const messageKeys = {
   byProject: (projectId: string) => ["messages", projectId] as const,
+  events: (projectId: string) => ["build-events", projectId] as const,
 };
 
 export function getBuildState(
@@ -36,7 +42,7 @@ export function useMessages(projectId: string) {
     enabled: Boolean(projectId),
     refetchInterval: (query) =>
       getBuildState(query.state.data) === "building" ? POLL_INTERVAL_MS : false,
-    refetchIntervalInBackground: false,
+    refetchIntervalInBackground: true,
   });
 }
 
@@ -51,5 +57,16 @@ export function useCreateMessage(projectId: string) {
         queryKey: messageKeys.byProject(projectId),
       });
     },
+  });
+}
+
+export function useBuildEvents(projectId: string, isBuilding: boolean) {
+  return useQuery({
+    queryKey: messageKeys.events(projectId),
+    queryFn: async () => unwrap(await getBuildEvents(projectId)),
+    enabled: Boolean(projectId) && isBuilding,
+    refetchInterval: isBuilding ? 1500 : false,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   });
 }

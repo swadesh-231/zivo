@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MessageSquare, MonitorPlay, TriangleAlert } from "lucide-react";
+import { Code2, MessageSquare, MonitorPlay, TriangleAlert } from "lucide-react";
 
+import { CodeViewer } from "@/components/projects/code-viewer";
 import { MessageComposer } from "@/components/projects/message-composer";
 import { MessageThread } from "@/components/projects/message-thread";
-import { PreviewPane } from "@/components/projects/preview-pane";
+import { PreviewPanel } from "@/components/projects/preview-panel";
 import { ProjectHeader } from "@/components/projects/project-header";
 import {
   Empty,
@@ -19,8 +20,18 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { getBuildState, useMessages } from "@/features/messages/hooks/messages";
+import {
+  getBuildState,
+  useBuildEvents,
+  useMessages,
+} from "@/features/messages/hooks/messages";
 import { cn } from "@/lib/utils";
+
+const MOBILE_TABS = [
+  { value: "chat", label: "Chat", icon: MessageSquare },
+  { value: "code", label: "Code", icon: Code2 },
+  { value: "preview", label: "Preview", icon: MonitorPlay },
+] as const;
 
 export function ProjectView({
   projectId,
@@ -33,30 +44,29 @@ export function ProjectView({
   const [selectedFragmentId, setSelectedFragmentId] = useState<string | null>(
     null,
   );
-  const [mobileView, setMobileView] = useState<"chat" | "preview">("chat");
+  const [mobileView, setMobileView] =
+    useState<(typeof MOBILE_TABS)[number]["value"]>("chat");
+
+  const buildState = getBuildState(messages.data);
+  const isBuilding = buildState === "building";
+  const events = useBuildEvents(projectId, isBuilding);
 
   const fragments = useMemo(
     () =>
       (messages.data ?? [])
         .map((entry) => entry.fragment)
-        .filter((fragment) => fragment !== null),
+        .filter((entry) => entry !== null),
     [messages.data],
   );
 
   const activeFragment = useMemo(() => {
     if (selectedFragmentId) {
-      const match = fragments.find(
-        (fragment) => fragment.id === selectedFragmentId,
-      );
-
+      const match = fragments.find((item) => item.id === selectedFragmentId);
       if (match) return match;
     }
 
     return fragments.at(-1) ?? null;
   }, [fragments, selectedFragmentId]);
-
-  const buildState = getBuildState(messages.data);
-  const isBuilding = buildState === "building";
 
   if (messages.isError) {
     return (
@@ -81,6 +91,7 @@ export function ProjectView({
           messages={messages.data ?? []}
           isLoading={messages.isPending}
           buildState={buildState}
+          buildEvents={events.data ?? []}
           activeFragmentId={activeFragment?.id ?? null}
           onSelectFragment={(fragmentId) => {
             setSelectedFragmentId(fragmentId);
@@ -93,15 +104,20 @@ export function ProjectView({
     </div>
   );
 
+  const codePanel = (
+    <div className="h-full min-h-0">
+      <CodeViewer files={activeFragment?.files ?? {}} />
+    </div>
+  );
+
+  const previewPanel = (
+    <PreviewPanel fragment={activeFragment} projectId={projectId} />
+  );
+
   return (
     <div className="flex h-[calc(100svh-3.5rem)] min-h-0 flex-col">
       <div className="flex items-center gap-1 border-b border-border/60 p-2 lg:hidden">
-        {(
-          [
-            { value: "chat", label: "Chat", icon: MessageSquare },
-            { value: "preview", label: "Preview", icon: MonitorPlay },
-          ] as const
-        ).map((tab) => (
+        {MOBILE_TABS.map((tab) => (
           <button
             key={tab.value}
             type="button"
@@ -121,23 +137,27 @@ export function ProjectView({
       </div>
 
       <div className="min-h-0 flex-1 lg:hidden">
-        {mobileView === "chat" ? (
-          chatPanel
-        ) : (
-          <PreviewPane fragment={activeFragment} />
-        )}
+        {mobileView === "chat"
+          ? chatPanel
+          : mobileView === "code"
+            ? codePanel
+            : previewPanel}
       </div>
 
       <ResizablePanelGroup
         orientation="horizontal"
         className="hidden min-h-0 flex-1 lg:flex"
       >
-        <ResizablePanel defaultSize="34%" minSize="24%" maxSize="55%">
+        <ResizablePanel defaultSize="26%" minSize="20%" maxSize="40%">
           {chatPanel}
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize="66%" minSize="45%">
-          <PreviewPane fragment={activeFragment} />
+        <ResizablePanel defaultSize="34%" minSize="20%">
+          {codePanel}
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize="40%" minSize="25%">
+          {previewPanel}
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

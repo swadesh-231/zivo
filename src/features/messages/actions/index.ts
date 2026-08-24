@@ -4,11 +4,13 @@ import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
+  buildEvent,
   fragment,
   message,
   project,
   MessageRole,
   MessageType,
+  type BuildEvent,
   type Fragment,
   type Message,
 } from "@/db/schema";
@@ -105,5 +107,26 @@ export async function createMessage(
   } catch (error) {
     console.error("Failed to create message:", error);
     return fail("Could not send that message. Please try again.");
+  }
+}
+
+export async function getBuildEvents(
+  projectId: string,
+): Promise<ActionResult<BuildEvent[]>> {
+  const user = await assertProjectAccess(projectId);
+
+  if (!user) return fail("Project not found.");
+
+  try {
+    const rows = await db
+      .select()
+      .from(buildEvent)
+      .where(eq(buildEvent.projectId, projectId))
+      .orderBy(asc(buildEvent.createdAt));
+
+    return ok(rows);
+  } catch (error) {
+    console.error("Failed to load build events:", error);
+    return fail("Could not load build progress.");
   }
 }

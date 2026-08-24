@@ -16,7 +16,6 @@ iterating.
 | Agents | Inngest + `@inngest/agent-kit` |
 | Sandboxes | E2B |
 | Uploads | ImageKit |
-| Email | Resend (optional) |
 
 ## Getting started
 
@@ -49,17 +48,29 @@ bun run sandbox:build
 | `/sign-in` | Signed out only | Google sign-in |
 | `/dashboard` | Signed in | Prompt composer and project grid |
 | `/projects/[id]` | Signed in | Chat, live preview, generated source |
-| `/settings` | Signed in | Profile, email, appearance |
+| `/settings` | Signed in | Profile photo, display name, appearance |
 
 `src/proxy.ts` sends signed-out visitors to `/sign-in` and signed-in visitors
 away from the landing page, so the marketing site disappears once you have an
 account.
 
+The project screen is three panels: conversation and live build activity on the
+left, generated source in the middle, running preview on the right. The preview
+toolbar downloads the whole generated project as a ZIP.
+
+Sign-in is Google-only, so Google owns the email address — there is no email
+change or verification flow in Zivo.
+
 ## Model providers
 
-Zivo uses whichever provider it finds a key for, checked in this order:
-Anthropic, OpenAI, Gemini, Groq, DeepSeek, Mistral, OpenRouter, Cerebras, xAI.
-Adding a key to `.env` is enough — no code change.
+Zivo builds an ordered list of every provider it has a key for, checked in this
+order: Anthropic, OpenAI, OpenRouter, Groq, Cerebras, DeepSeek, Mistral, xAI,
+Gemini. Adding a key to `.env` is enough — no code change.
+
+**Failover is automatic.** If the first provider returns a rate limit, a billing
+error, a bad model id, or a malformed tool call, Zivo logs the switch into the
+build activity feed and retries the same work on the next configured key. Only
+when every key has failed does the build report an error.
 
 Pin a provider or model globally with `AI_PROVIDER` and `AI_MODEL`, or per
 agent role:
@@ -89,8 +100,9 @@ AI_TITLE_PROVIDER=groq
 AI_RESPONSE_PROVIDER=groq
 ```
 
-`AI_MAX_HISTORY_MESSAGES` (default 10) caps how much conversation is replayed to
-the agent, and `AI_MAX_ITERATIONS` (default 15) caps the tool loop.
+Pinning a provider makes it first in the chain; the remaining keys are still used
+as fallbacks. `AI_MAX_HISTORY_MESSAGES` (default 10) caps how much conversation is
+replayed to the agent, and `AI_MAX_ITERATIONS` (default 15) caps the tool loop.
 
 ## Environment
 
@@ -102,8 +114,6 @@ Optional:
 
 - `IMAGEKIT_PUBLIC_KEY` / `IMAGEKIT_PRIVATE_KEY` — profile photo uploads. Without
   them the upload button reports that uploads are not configured.
-- `RESEND_API_KEY` / `EMAIL_FROM` — email-change confirmations. Without them the
-  confirmation link is logged to the server console instead of sent.
 
 ## Scripts
 

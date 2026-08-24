@@ -38,3 +38,32 @@ export function extractTaskSummary(raw: string | undefined) {
 export function toolErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
+
+export function describeFailure(error: unknown) {
+  const raw =
+    typeof error === "object" && error !== null && "message" in error
+      ? String((error as { message: unknown }).message)
+      : "";
+
+  const detail = raw.trim().slice(0, 200);
+
+  if (/template .* not found/i.test(detail)) {
+    return "The E2B sandbox template is missing. Run `bun run sandbox:build` and try again.";
+  }
+
+  if (/status code: 402|insufficient|quota|credit/i.test(detail)) {
+    return `Every configured AI provider refused the request for billing reasons. Top one up or add another key. (${detail})`;
+  }
+
+  if (/status code: 429|rate.?limit/i.test(detail)) {
+    return `Every configured AI provider hit a rate limit. Wait a minute and try again, or add a key with more headroom. (${detail})`;
+  }
+
+  if (/status code: 40[134]|invalid.?api.?key|unauthorized|not found/i.test(detail)) {
+    return `No configured AI provider accepted the request. Check the keys and model names in .env. (${detail})`;
+  }
+
+  return detail
+    ? `The build failed: ${detail}`
+    : "The build failed after several attempts. Try rephrasing your request.";
+}

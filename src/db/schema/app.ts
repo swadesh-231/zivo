@@ -13,6 +13,25 @@ import { user } from "./auth";
 
 export const messageRole = pgEnum("message_role", ["USER", "ASSISTANT"]);
 export const messageType = pgEnum("message_type", ["RESULT", "ERROR"]);
+export const buildEventKind = pgEnum("build_event_kind", [
+  "STATUS",
+  "THOUGHT",
+  "READ",
+  "WRITE",
+  "TERMINAL",
+  "ERROR",
+]);
+
+export const BuildEventKind = {
+  STATUS: "STATUS",
+  THOUGHT: "THOUGHT",
+  READ: "READ",
+  WRITE: "WRITE",
+  TERMINAL: "TERMINAL",
+  ERROR: "ERROR",
+} as const;
+
+export type BuildEventKind = (typeof BuildEventKind)[keyof typeof BuildEventKind];
 
 export const MessageRole = {
   USER: "USER",
@@ -82,6 +101,22 @@ export const fragment = pgTable(
   (table) => [uniqueIndex("fragment_message_id_idx").on(table.messageId)],
 );
 
+export const buildEvent = pgTable(
+  "build_event",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    kind: buildEventKind("kind").notNull(),
+    label: text("label").notNull(),
+    detail: text("detail"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("build_event_project_id_idx").on(table.projectId)],
+);
+
 export type Project = typeof project.$inferSelect;
 export type Message = typeof message.$inferSelect;
 export type Fragment = typeof fragment.$inferSelect;
+export type BuildEvent = typeof buildEvent.$inferSelect;

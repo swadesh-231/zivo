@@ -4,23 +4,15 @@ import { useEffect, useRef } from "react";
 import { RotateCw, TriangleAlert } from "lucide-react";
 
 import { FragmentCard } from "@/components/projects/fragment-card";
+import { ActivityFeed } from "@/components/projects/activity-feed";
 import { RichText } from "@/components/projects/rich-text";
 import { Message, MessageContent, MessageGroup } from "@/components/ui/message";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import type { ProjectMessage } from "@/features/messages/actions";
 import type { BuildState } from "@/features/messages/hooks/messages";
+import type { BuildEvent } from "@/db/schema";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-function BuildingIndicator() {
-  return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-border/70 bg-card/40 px-3 py-2.5 text-sm text-muted-foreground">
-      <Spinner className="size-3.5" />
-      <span>Agents are writing files and booting the preview…</span>
-    </div>
-  );
-}
 
 function StalledNotice() {
   return (
@@ -56,12 +48,14 @@ export function MessageThread({
   messages,
   isLoading,
   buildState,
+  buildEvents,
   activeFragmentId,
   onSelectFragment,
 }: {
   messages: ProjectMessage[];
   isLoading: boolean;
   buildState: BuildState;
+  buildEvents: BuildEvent[];
   activeFragmentId: string | null;
   onSelectFragment: (fragmentId: string) => void;
 }) {
@@ -129,7 +123,13 @@ export function MessageThread({
         })}
       </MessageGroup>
 
-      {buildState === "building" ? <BuildingIndicator /> : null}
+      {buildState === "building" ? (
+        <ActivityFeed
+          events={buildEvents}
+          startedAt={messages.at(-1)?.createdAt ?? new Date()}
+          isBuilding
+        />
+      ) : null}
       {buildState === "stalled" ? <StalledNotice /> : null}
 
       <div ref={endRef} />

@@ -56,8 +56,8 @@ export function CodeViewer({ files }: { files: Record<string, string> }) {
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-      <div className="scrollbar-thin hidden min-h-0 overflow-y-auto border-r border-border/60 p-2 md:block">
+    <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
+      <div className="scrollbar-thin hidden min-h-0 overflow-y-auto border-r border-border/60 p-2 lg:block">
         {paths.map((path) => {
           const { dir, name } = splitPath(path);
           const isActive = path === activePath;
@@ -83,7 +83,7 @@ export function CodeViewer({ files }: { files: Record<string, string> }) {
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-col">
-        <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
+        <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3">
           <span className="truncate font-mono text-xs text-muted-foreground">
             {activePath}
           </span>
@@ -107,7 +107,7 @@ export function CodeViewer({ files }: { files: Record<string, string> }) {
           </table>
         </div>
 
-        <div className="border-t border-border/60 px-3 py-1.5 md:hidden">
+        <div className="border-t border-border/60 px-3 py-1.5 lg:hidden">
           <select
             value={activePath ?? ""}
             onChange={(event) => setSelected(event.target.value)}

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { BadgeCheck, LogOut } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,11 +18,13 @@ import { toast } from "@/components/ui/toast";
 import { signOut } from "@/lib/auth-client";
 
 export function AccountCard({
+  email,
+  emailVerified,
   createdAt,
-  provider,
 }: {
+  email: string;
+  emailVerified: boolean;
   createdAt: string;
-  provider: string;
 }) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
@@ -50,19 +53,38 @@ export function AccountCard({
       <CardHeader>
         <CardTitle>Account</CardTitle>
         <CardDescription>
-          Signed in with {provider}. Member since {createdAt}.
+          Zivo signs you in with Google, so Google owns your email address.
+          Change it there and it updates here on your next sign-in.
         </CardDescription>
       </CardHeader>
 
-      <CardContent>
-        <Button
-          variant="outline"
-          onClick={() => void handleSignOut()}
-          disabled={isPending}
-        >
-          {isPending ? <Spinner /> : <LogOut data-icon="inline-start" />}
-          Sign out
-        </Button>
+      <CardContent className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="text-sm text-muted-foreground">Email</span>
+          <span className="text-sm font-medium">{email}</span>
+          {emailVerified ? (
+            <Badge variant="secondary">
+              <BadgeCheck data-icon="inline-start" />
+              Verified by Google
+            </Badge>
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="text-sm text-muted-foreground">Member since</span>
+          <span className="text-sm font-medium">{createdAt}</span>
+        </div>
+
+        <div>
+          <Button
+            variant="outline"
+            onClick={() => void handleSignOut()}
+            disabled={isPending}
+          >
+            {isPending ? <Spinner /> : <LogOut data-icon="inline-start" />}
+            Sign out
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

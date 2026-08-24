@@ -2,15 +2,13 @@ import type { Metadata } from "next";
 
 import { AccountCard } from "@/components/settings/account-card";
 import { AppearanceCard } from "@/components/settings/appearance-card";
-import { EmailForm } from "@/components/settings/email-form";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { requireUser } from "@/features/auth/session";
 import { isImageKitConfigured } from "@/lib/imagekit";
-import { isMailConfigured } from "@/lib/mail";
 
 export const metadata: Metadata = {
   title: "Settings",
-  description: "Manage your Zivo profile, email address, and appearance.",
+  description: "Manage your Zivo profile and appearance.",
 };
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en", {
@@ -26,7 +24,7 @@ export default async function SettingsPage() {
       <header className="mb-8">
         <h1 className="text-2xl font-medium tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage how you appear in Zivo and where we email you.
+          Manage how you appear in Zivo.
         </p>
       </header>
 
@@ -35,13 +33,10 @@ export default async function SettingsPage() {
           user={{ name: user.name, email: user.email, image: user.image }}
           uploadsEnabled={isImageKitConfigured()}
         />
-        <EmailForm
-          user={{ email: user.email, emailVerified: user.emailVerified }}
-          mailConfigured={isMailConfigured()}
-        />
         <AppearanceCard />
         <AccountCard
-          provider="Google"
+          email={user.email}
+          emailVerified={user.emailVerified}
           createdAt={DATE_FORMAT.format(new Date(user.createdAt))}
         />
       </div>
