@@ -1,6 +1,7 @@
 import "server-only";
 
 import arcjet, {
+  type ArcjetLogger,
   detectBot,
   detectPromptInjection,
   fixedWindow,
@@ -14,7 +15,55 @@ import { optionalEnv } from "@/lib/env";
 const key = optionalEnv("ARCJET_KEY");
 
 export const isArcjetConfigured = Boolean(key);
-const base = key ? arcjet({ key, rules: [shield({ mode: "LIVE" })] }) : null;
+
+/**
+ * Arcjet's logger prints a full decision object and latency lines at debug
+ * level, and repeats one warning on every `protect()` call in development —
+ * "Arcjet will use 127.0.0.1 when missing public IP address" — because
+ * localhost has no public IP. Both bury real errors in the dev server log.
+ *
+ * Keep warnings and errors, drop the debug/info firehose and that one repeated
+ * notice. Set ARCJET_DEBUG=1 to get the full output back when working on a rule.
+ */
+const DEV_IP_NOTICE = "when missing public IP address";
+
+const debugEnabled = optionalEnv("ARCJET_DEBUG") === "1";
+
+// Each method is overloaded as (msg, ...args) and (obj, msg?, ...args), so the
+// first parameter is typed as the union of both.
+type LogArgs = [string | Record<string, unknown>, ...unknown[]];
+
+// Arcjet's messages are printf templates ("... for \"%s\" rule"), so the prefix
+// has to go inside the format string or console stops interpolating them.
+const tag = (args: LogArgs): LogArgs =>
+  typeof args[0] === "string"
+    ? [`✦Aj ${args[0]}`, ...args.slice(1)]
+    : ["✦Aj", ...args];
+
+const log: ArcjetLogger = {
+  debug: (...args: LogArgs) => {
+    if (debugEnabled) console.debug(...tag(args));
+  },
+  info: (...args: LogArgs) => {
+    if (debugEnabled) console.info(...tag(args));
+  },
+  warn: (...args: LogArgs) => {
+    if (
+      !debugEnabled &&
+      typeof args[0] === "string" &&
+      args[0].includes(DEV_IP_NOTICE)
+    ) {
+      return;
+    }
+
+    console.warn(...tag(args));
+  },
+  error: (...args: LogArgs) => console.error(...tag(args)),
+};
+
+const base = key
+  ? arcjet({ key, log, rules: [shield({ mode: "LIVE" })] })
+  : null;
 
 type ArcjetClient = NonNullable<typeof base>;
 type Decision = Awaited<ReturnType<ArcjetClient["protect"]>>;

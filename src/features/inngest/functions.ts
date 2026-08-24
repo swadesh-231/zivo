@@ -39,7 +39,7 @@ const SANDBOX_TIMEOUT_MS = Number(
   process.env.E2B_SANDBOX_TIMEOUT_MS ?? 15 * 60 * 1000,
 );
 
-const MAX_ITERATIONS = Number(process.env.AI_MAX_ITERATIONS ?? 15);
+const MAX_ITERATIONS = Number(process.env.AI_MAX_ITERATIONS ?? 25);
 
 const MAX_HISTORY_MESSAGES = Number(process.env.AI_MAX_HISTORY_MESSAGES ?? 10);
 
@@ -169,13 +169,24 @@ export const codeAgentFunction = inngest.createFunction(
       { messages: previousMessages },
     );
 
+    // Inngest memoises a step by its id, so two steps sharing an id in one run
+    // return the same cached result. Our ids were derived from the command or
+    // the file paths, which repeat constantly — the agent reruns `bun install`
+    // or rewrites a file it already wrote — and the repeat was silently skipped
+    // instead of actually touching the sandbox. Number them instead.
+    //
+    // The counter is deterministic across Inngest's replays because the tool
+    // calls replay in the same order.
+    let stepSequence = 0;
+    const nextStepId = (label: string) => `${++stepSequence}-${label}`;
+
     const buildTools = () => [
       createTool({
         name: "terminal",
         description: "Run a shell command inside the sandbox",
         parameters: z.object({ command: z.string() }),
         handler: async ({ command }, { step }) =>
-          step?.run(`terminal-${command.slice(0, 40)}`, async () => {
+          step?.run(nextStepId(`terminal-${command.slice(0, 40)}`), async () => {
             await emit(
               projectId,
               BuildEventKind.TERMINAL,
@@ -210,7 +221,9 @@ export const codeAgentFunction = inngest.createFunction(
         }),
         handler: async ({ files }, { step, network }) => {
           const written = await step?.run(
-            `write-${files.map((f) => f.path).join(",").slice(0, 40)}`,
+            nextStepId(
+              `write-${files.map((f) => f.path).join(",").slice(0, 40)}`,
+            ),
             async () => {
               for (const file of files) {
                 await emit(projectId, BuildEventKind.WRITE, file.path);
@@ -250,7 +263,7 @@ export const codeAgentFunction = inngest.createFunction(
         description: "Read files from the sandbox",
         parameters: z.object({ files: z.array(z.string()) }),
         handler: async ({ files }, { step }) =>
-          step?.run(`read-${files.join(",").slice(0, 40)}`, async () => {
+          step?.run(nextStepId(`read-${files.join(",").slice(0, 40)}`), async () => {
             for (const path of files) {
               await emit(projectId, BuildEventKind.READ, path);
             }
@@ -315,14 +328,17 @@ export const codeAgentFunction = inngest.createFunction(
 
     const summary = extractTaskSummary(networkResult.state.data.summary);
     const files = networkResult.state.data.files ?? {};
-    const hasResult = Boolean(summary) && Object.keys(files).length > 0;
+    const paths = Object.keys(files);
 
-    if (!hasResult) {
+    // Only a build that wrote nothing is a real failure.
+    if (paths.length === 0) {
       await step.run("save-empty-result", async () => {
         await emit(projectId, BuildEventKind.ERROR, "No files were produced");
         await recordFailure(
           projectId,
-          "The agent could not finish this build. Try describing the app in more detail.",
+          summary
+            ? "The agent finished without writing any files. Try describing the app in more detail."
+            : "The agent stopped before it could write anything. Try again, or add more detail about the app you want.",
         );
 
         return null;
@@ -331,13 +347,30 @@ export const codeAgentFunction = inngest.createFunction(
       return { status: "failed" as const };
     }
 
+    // Files exist but no <task_summary>: the agent ran out of iterations, or its
+    // final message was cut off. The sandbox is running and the code is real, so
+    // keep the work instead of throwing it away — the user can iterate from it.
+    const isComplete = Boolean(summary);
+    const resolvedSummary =
+      summary ||
+      `The build stopped before the agent reported back, after writing ${paths.length} file(s): ${paths.slice(0, 8).join(", ")}. The app may be unfinished.`;
+
     await step.run("summarise", async () => {
-      await emit(
-        projectId,
-        BuildEventKind.STATUS,
-        `Built with ${codeCandidate.label}`,
-        codeCandidate.model,
-      );
+      if (isComplete) {
+        await emit(
+          projectId,
+          BuildEventKind.STATUS,
+          `Built with ${codeCandidate.label}`,
+          codeCandidate.model,
+        );
+      } else {
+        await emit(
+          projectId,
+          BuildEventKind.ERROR,
+          "Build stopped early — keeping what was written",
+          `${paths.length} file(s) saved. Ask for a change to continue.`,
+        );
+      }
 
       return null;
     });
@@ -352,7 +385,7 @@ export const codeAgentFunction = inngest.createFunction(
           model: candidate.create(),
         });
 
-        const { output } = await agent.run(summary, { step });
+        const { output } = await agent.run(resolvedSummary, { step });
 
         return agentOutputText(output, "Untitled");
       },
@@ -368,9 +401,14 @@ export const codeAgentFunction = inngest.createFunction(
           model: candidate.create(),
         });
 
-        const { output } = await agent.run(summary, { step });
+        const { output } = await agent.run(resolvedSummary, { step });
 
-        return agentOutputText(output, "Here is what I built for you.");
+        return agentOutputText(
+          output,
+          isComplete
+            ? "Here is what I built for you."
+            : "The build stopped early, but the files it wrote are saved below. Ask for a change to keep going.",
+        );
       },
     );
 
@@ -407,7 +445,7 @@ export const codeAgentFunction = inngest.createFunction(
     });
 
     return {
-      status: "completed" as const,
+      status: isComplete ? ("completed" as const) : ("partial" as const),
       provider: codeCandidate.provider,
       url: sandboxUrl,
       title: fragmentTitle,
