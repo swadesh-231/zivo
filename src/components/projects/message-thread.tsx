@@ -3,20 +3,18 @@
 import { useEffect, useRef } from "react";
 import { RotateCw, TriangleAlert } from "lucide-react";
 
-import { FragmentCard } from "@/components/projects/fragment-card";
 import { ActivityFeed } from "@/components/projects/activity-feed";
+import { FragmentCard } from "@/components/projects/fragment-card";
 import { RichText } from "@/components/projects/rich-text";
-import { Message, MessageContent, MessageGroup } from "@/components/ui/message";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { BuildEvent } from "@/db/schema";
 import type { ProjectMessage } from "@/features/messages/actions";
 import type { BuildState } from "@/features/messages/hooks/messages";
-import type { BuildEvent } from "@/db/schema";
 import { formatRelativeTime } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 function StalledNotice() {
   return (
-    <div className="flex items-start gap-2.5 rounded-lg border border-border/70 bg-card/40 px-3 py-2.5 text-sm text-muted-foreground">
+    <div className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-card/40 px-3.5 py-3 text-[13px] leading-relaxed text-muted-foreground">
       <RotateCw className="mt-0.5 size-3.5 shrink-0" />
       <span>
         This build never reported back. The sandbox may have timed out or the
@@ -26,21 +24,51 @@ function StalledNotice() {
   );
 }
 
-function FragmentEntry({
-  fragment,
+function UserMessage({ entry }: { entry: ProjectMessage }) {
+  return (
+    <div className="fade-up flex flex-col items-end gap-1">
+      <div className="max-w-[88%] rounded-2xl rounded-br-md bg-muted px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap">
+        {entry.content}
+      </div>
+      <span className="px-1 text-[11px] text-muted-foreground/60">
+        {formatRelativeTime(entry.createdAt)}
+      </span>
+    </div>
+  );
+}
+
+function AssistantMessage({
+  entry,
   activeFragmentId,
   onSelectFragment,
 }: {
-  fragment: NonNullable<ProjectMessage["fragment"]>;
+  entry: ProjectMessage;
   activeFragmentId: string | null;
   onSelectFragment: (fragmentId: string) => void;
 }) {
+  if (entry.type === "ERROR") {
+    return (
+      <div className="fade-up flex items-start gap-2.5 rounded-xl border border-destructive/25 bg-destructive/8 px-3.5 py-3 text-[13px] leading-relaxed text-destructive">
+        <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+        <span className="min-w-0">{entry.content}</span>
+      </div>
+    );
+  }
+
   return (
-    <FragmentCard
-      fragment={fragment}
-      isActive={fragment.id === activeFragmentId}
-      onSelect={() => onSelectFragment(fragment.id)}
-    />
+    <div className="fade-up flex flex-col gap-3">
+      <div className="text-[13px] leading-relaxed text-foreground/90">
+        <RichText>{entry.content}</RichText>
+      </div>
+
+      {entry.fragment ? (
+        <FragmentCard
+          fragment={entry.fragment}
+          isActive={entry.fragment.id === activeFragmentId}
+          onSelect={() => onSelectFragment(entry.fragment!.id)}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -63,65 +91,32 @@ export function MessageThread({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length, buildState]);
+  }, [messages.length, buildState, buildEvents.length]);
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4 p-4">
-        <Skeleton className="h-14 w-3/5 self-end rounded-2xl" />
-        <Skeleton className="h-24 w-4/5 rounded-2xl" />
-        <Skeleton className="h-16 w-2/3 rounded-2xl" />
+      <div className="flex flex-col gap-5 p-4">
+        <Skeleton className="h-12 w-3/5 self-end rounded-2xl" />
+        <Skeleton className="h-20 w-full rounded-xl" />
+        <Skeleton className="h-14 w-4/5 rounded-xl" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-5 p-4">
-      <MessageGroup className="gap-5">
-        {messages.map((entry) => {
-          const isUser = entry.role === "USER";
-
-          return (
-            <Message key={entry.id} align={isUser ? "end" : "start"}>
-              <MessageContent className="max-w-[92%]">
-                <div
-                  className={cn(
-                    "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
-                    isUser
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border/70 bg-card/50",
-                    entry.type === "ERROR" &&
-                      "border-destructive/30 bg-destructive/10 text-destructive",
-                  )}
-                >
-                  {entry.type === "ERROR" ? (
-                    <span className="flex items-start gap-2">
-                      <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-                      {entry.content}
-                    </span>
-                  ) : isUser ? (
-                    entry.content
-                  ) : (
-                    <RichText>{entry.content}</RichText>
-                  )}
-                </div>
-
-                {entry.fragment ? (
-                  <FragmentEntry
-                    fragment={entry.fragment}
-                    activeFragmentId={activeFragmentId}
-                    onSelectFragment={onSelectFragment}
-                  />
-                ) : null}
-
-                <span className="px-1 text-[11px] text-muted-foreground">
-                  {formatRelativeTime(entry.createdAt)}
-                </span>
-              </MessageContent>
-            </Message>
-          );
-        })}
-      </MessageGroup>
+    <div className="flex flex-col gap-6 p-4">
+      {messages.map((entry) =>
+        entry.role === "USER" ? (
+          <UserMessage key={entry.id} entry={entry} />
+        ) : (
+          <AssistantMessage
+            key={entry.id}
+            entry={entry}
+            activeFragmentId={activeFragmentId}
+            onSelectFragment={onSelectFragment}
+          />
+        ),
+      )}
 
       {buildState === "building" ? (
         <ActivityFeed
@@ -130,6 +125,7 @@ export function MessageThread({
           isBuilding
         />
       ) : null}
+
       {buildState === "stalled" ? <StalledNotice /> : null}
 
       <div ref={endRef} />

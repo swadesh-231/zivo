@@ -9,12 +9,9 @@ import { MessageThread } from "@/components/projects/message-thread";
 import { PreviewPanel } from "@/components/projects/preview-panel";
 import { ProjectHeader } from "@/components/projects/project-header";
 import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+  WorkspaceTabs,
+  type WorkspacePane,
+} from "@/components/projects/workspace-tabs";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -25,6 +22,7 @@ import {
   useBuildEvents,
   useMessages,
 } from "@/features/messages/hooks/messages";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 const MOBILE_TABS = [
@@ -41,11 +39,13 @@ export function ProjectView({
   projectName: string;
 }) {
   const messages = useMessages(projectId);
+  const isMobile = useIsMobile();
   const [selectedFragmentId, setSelectedFragmentId] = useState<string | null>(
     null,
   );
   const [mobileView, setMobileView] =
     useState<(typeof MOBILE_TABS)[number]["value"]>("chat");
+  const [pane, setPane] = useState<WorkspacePane>("preview");
 
   const buildState = getBuildState(messages.data);
   const isBuilding = buildState === "building";
@@ -70,15 +70,15 @@ export function ProjectView({
 
   if (messages.isError) {
     return (
-      <Empty className="flex-1">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <TriangleAlert />
-          </EmptyMedia>
-          <EmptyTitle>Could not open this project</EmptyTitle>
-          <EmptyDescription>{messages.error.message}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+        <span className="flex size-10 items-center justify-center rounded-full border border-border/70">
+          <TriangleAlert className="size-4 text-muted-foreground" />
+        </span>
+        <p className="text-sm font-medium">Could not open this project</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          {messages.error.message}
+        </p>
+      </div>
     );
   }
 
@@ -104,60 +104,68 @@ export function ProjectView({
     </div>
   );
 
-  const codePanel = (
-    <div className="h-full min-h-0">
-      <CodeViewer files={activeFragment?.files ?? {}} />
-    </div>
-  );
+  const codePanel = <CodeViewer files={activeFragment?.files ?? {}} />;
 
   const previewPanel = (
     <PreviewPanel fragment={activeFragment} projectId={projectId} />
   );
 
+  const tabs = <WorkspaceTabs value={pane} onChange={setPane} />;
+
+  const workspacePane =
+    pane === "code" ? (
+      <CodeViewer files={activeFragment?.files ?? {}} leading={tabs} />
+    ) : (
+      <PreviewPanel
+        fragment={activeFragment}
+        projectId={projectId}
+        leading={tabs}
+      />
+    );
+
+  if (isMobile) {
+    return (
+      <div className="flex h-[calc(100svh-3.5rem)] min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-1 border-b border-border/60 p-2">
+          {MOBILE_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => setMobileView(tab.value)}
+              aria-pressed={mobileView === tab.value}
+              className={cn(
+                "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                mobileView === tab.value
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <tab.icon className="size-3.5" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="min-h-0 flex-1">
+          {mobileView === "chat"
+            ? chatPanel
+            : mobileView === "code"
+              ? codePanel
+              : previewPanel}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-[calc(100svh-3.5rem)] min-h-0 flex-col">
-      <div className="flex items-center gap-1 border-b border-border/60 p-2 lg:hidden">
-        {MOBILE_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => setMobileView(tab.value)}
-            aria-pressed={mobileView === tab.value}
-            className={cn(
-              "inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-              mobileView === tab.value
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <tab.icon className="size-3.5" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="min-h-0 flex-1 lg:hidden">
-        {mobileView === "chat"
-          ? chatPanel
-          : mobileView === "code"
-            ? codePanel
-            : previewPanel}
-      </div>
-
-      <ResizablePanelGroup
-        orientation="horizontal"
-        className="hidden min-h-0 flex-1 lg:flex"
-      >
-        <ResizablePanel defaultSize="26%" minSize="20%" maxSize="40%">
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
+        <ResizablePanel defaultSize="26%" minSize="20%" maxSize="42%">
           {chatPanel}
         </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize="34%" minSize="20%">
-          {codePanel}
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize="40%" minSize="25%">
-          {previewPanel}
+        <ResizableHandle />
+        <ResizablePanel defaultSize="74%" minSize="40%">
+          {workspacePane}
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

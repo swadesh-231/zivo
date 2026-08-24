@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatProjectName } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export function ProjectHeader({
   name,
@@ -15,7 +15,7 @@ export function ProjectHeader({
   isBuilding: boolean;
 }) {
   return (
-    <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border/60 px-3">
+    <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 px-2.5">
       <Button
         variant="ghost"
         size="icon-sm"
@@ -26,16 +26,27 @@ export function ProjectHeader({
         <ArrowLeft />
       </Button>
 
-      <p className="min-w-0 flex-1 truncate text-sm font-medium capitalize">
+      <p className="min-w-0 flex-1 truncate text-[13px] font-medium capitalize">
         {formatProjectName(name)}
       </p>
 
-      {isBuilding ? (
-        <Badge variant="secondary" className="gap-1.5">
-          <Loader2 className="size-3 animate-spin" />
-          Building
-        </Badge>
-      ) : null}
+      <span
+        className={cn(
+          "flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] transition-colors",
+          isBuilding
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground/70",
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "size-1.5 rounded-full",
+            isBuilding ? "animate-pulse bg-emerald-500" : "bg-muted-foreground/40",
+          )}
+        />
+        {isBuilding ? "Building" : "Ready"}
+      </span>
     </div>
   );
 }

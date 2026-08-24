@@ -2,28 +2,9 @@
 
 import { upload } from "@imagekit/next";
 
-const MAX_BYTES = 4 * 1024 * 1024;
+import { AVATAR_FOLDER } from "@/lib/avatar";
 
-const ACCEPTED_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/avif",
-];
-
-export const AVATAR_ACCEPT = ACCEPTED_TYPES.join(",");
-
-export function validateAvatar(file: File) {
-  if (!ACCEPTED_TYPES.includes(file.type)) {
-    return "Use a PNG, JPEG, WebP, or AVIF image.";
-  }
-
-  if (file.size > MAX_BYTES) {
-    return "Keep the image under 4 MB.";
-  }
-
-  return null;
-}
+export { AVATAR_ACCEPT, AVATAR_HINT, validateAvatar } from "@/lib/avatar";
 
 export async function uploadAvatar(
   file: File,
@@ -49,7 +30,7 @@ export async function uploadAvatar(
   const result = await upload({
     file,
     fileName: file.name,
-    folder: "/zivo/avatars",
+    folder: AVATAR_FOLDER,
     useUniqueFileName: true,
     token,
     signature,

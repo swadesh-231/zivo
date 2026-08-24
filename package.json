@@ -15,12 +15,15 @@
     "sandbox:build": "tsx sandbox/build.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.46",
+    "@arcjet/next": "^1.10.0",
     "@base-ui/react": "^1.7.0",
     "@imagekit/next": "^2.1.5",
     "@inngest/agent-kit": "^0.13.2",
     "@neondatabase/serverless": "^1.1.0",
     "@shadcn/react": "^0.3.0",
     "@tanstack/react-query": "^5.102.2",
+    "ai": "^7.0.77",
     "better-auth": "^1.7.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -42,8 +42,8 @@ export function MessageComposer({
   };
 
   return (
-    <div className="border-t border-border/60 p-3">
-      <div className="relative rounded-xl border border-border/70 bg-card/50 transition-colors focus-within:border-foreground/25">
+    <div className="shrink-0 border-t border-border/60 p-3">
+      <div className="rounded-2xl border border-border/70 bg-card/50 transition-colors focus-within:border-foreground/25 focus-within:bg-card">
         <Textarea
           value={value}
           onChange={(event) => setValue(event.target.value)}
@@ -59,22 +59,25 @@ export function MessageComposer({
             disabled ? "Waiting for the current build…" : "Ask for a change…"
           }
           aria-label="Ask for a change"
-          className="min-h-16 resize-none border-0 bg-transparent p-3 pr-12 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
+          className="min-h-14 resize-none border-0 bg-transparent p-3 text-[13px] shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
-        <Button
-          size="icon-sm"
-          onClick={() => void submit()}
-          disabled={!canSubmit}
-          aria-label="Send message"
-          className="absolute right-2 bottom-2"
-        >
-          {isPending ? <Spinner /> : <ArrowUp />}
-        </Button>
-      </div>
 
-      <p className="mt-2 px-1 text-[11px] text-muted-foreground">
-        Enter to send · Shift + Enter for a new line
-      </p>
+        <div className="flex items-center justify-between gap-2 px-3 pb-2.5">
+          <span className="text-[11px] text-muted-foreground/60">
+            Enter to send · Shift + Enter for a new line
+          </span>
+
+          <Button
+            size="icon-sm"
+            onClick={() => void submit()}
+            disabled={!canSubmit}
+            aria-label="Send message"
+            className="rounded-full"
+          >
+            {isPending ? <Spinner /> : <ArrowUp />}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -16,14 +16,16 @@ iterating.
 | Agents | Inngest + `@inngest/agent-kit` |
 | Sandboxes | E2B |
 | Uploads | ImageKit |
+| Request protection | Arcjet |
 
 ## Getting started
 
 ```bash
 bun install
-cp .env.example .env
 bun run db:migrate
 ```
+
+Create a `.env` with the variables below before the first run.
 
 Run the app and the Inngest dev server side by side:
 
@@ -104,14 +106,49 @@ Pinning a provider makes it first in the chain; the remaining keys are still use
 as fallbacks. `AI_MAX_HISTORY_MESSAGES` (default 10) caps how much conversation is
 replayed to the agent, and `AI_MAX_ITERATIONS` (default 15) caps the tool loop.
 
+## Request protection
+
+Arcjet guards the surfaces that cost money or are exposed to the open internet.
+`src/lib/arcjet.ts` holds one shared client and the per-surface rules:
+
+| Surface | Rules |
+| --- | --- |
+| `createProject` / `createMessage` | Shield, token bucket per user, prompt-injection detection |
+| `/api/auth/[...all]` | Shield, 60 requests/min per IP, bot detection |
+| `/api/imagekit/auth` | Shield, 10 requests/min per user |
+| `/api/projects/[id]/download` | Shield, 20 requests/min per user |
+| `/api/inngest` | none — see below |
+
+Builds are the expensive path: each one boots an E2B sandbox and runs a paid
+coding agent for several iterations. The token bucket allows a burst of 10 and
+refills 5 per hour, per user.
+
+`/api/inngest` is deliberately unguarded. Inngest calls it server-to-server, so
+bot detection would classify it as an automated client and break every build.
+
+Two rules ship in `DRY_RUN`, which logs to the Arcjet dashboard without
+blocking:
+
+- **Prompt injection** on build actions. In Zivo the prompt *is* the instruction
+  to the coding agent, so the user is the principal rather than untrusted
+  third-party content — a legitimate prompt like "build a page about prompt
+  injection" would trip a `LIVE` rule.
+- **Bot detection** on the auth route, which also serves the Google OAuth
+  callback. A false positive there locks people out of the only way in, and
+  sign-in is Google-only so there are no passwords to stuff.
+
+Every guard fails open: if Arcjet errors or is unreachable, the request is
+allowed rather than taking the product down with it.
+
 ## Environment
 
-Every variable lives in `.env.example`. The required ones are `DATABASE_URL`,
-`BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `E2B_API_KEY`,
-and at least one model provider key.
+The required variables are `DATABASE_URL`, `BETTER_AUTH_SECRET`,
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `E2B_API_KEY`, and at least one
+model provider key.
 
 Optional:
 
+- `ARCJET_KEY` — request protection. Without it every guard allows the request.
 - `IMAGEKIT_PUBLIC_KEY` / `IMAGEKIT_PRIVATE_KEY` — profile photo uploads. Without
   them the upload button reports that uploads are not configured.
 

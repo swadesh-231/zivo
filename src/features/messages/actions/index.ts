@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -15,10 +16,13 @@ import {
   type Message,
 } from "@/db/schema";
 import { getCurrentUser } from "@/features/auth/session";
-import { inngest } from "@/features/inngest/client";
+import {
+  dispatchBuild,
+  INNGEST_UNREACHABLE,
+  MAX_PROMPT_LENGTH,
+} from "@/features/inngest/dispatch";
 import { fail, ok, type ActionResult } from "@/lib/action-result";
-
-const MAX_PROMPT_LENGTH = 8000;
+import { guardBuild } from "@/lib/arcjet";
 
 export type ProjectMessage = Message & { fragment: Fragment | null };
 
@@ -73,6 +77,11 @@ export async function createMessage(
     return fail(`Keep the prompt under ${MAX_PROMPT_LENGTH} characters.`);
   }
 
+  // Every follow-up message triggers another full build.
+  const denied = await guardBuild(user.id, value);
+
+  if (denied) return fail(denied.message);
+
   try {
     const [created] = await db
       .insert(message)
@@ -85,23 +94,22 @@ export async function createMessage(
       .returning();
 
     try {
-      await inngest.send({
-        name: "code-agent/run",
-        data: { value, projectId },
-      });
+      await dispatchBuild(projectId, value);
     } catch (error) {
-      console.error("Failed to dispatch code-agent/run:", error);
+      console.error("Failed to dispatch a build:", error);
       await db.delete(message).where(eq(message.id, created.id));
 
-      return fail(
-        "Could not reach the Inngest server. Start it with `bun run inngest` and try again.",
-      );
+      return fail(INNGEST_UNREACHABLE);
     }
 
     await db
       .update(project)
       .set({ updatedAt: new Date() })
       .where(eq(project.id, projectId));
+
+    // The row above just moved this project to the top of the dashboard, and
+    // its "Updated ..." label changed.
+    revalidatePath("/dashboard");
 
     return ok(created);
   } catch (error) {

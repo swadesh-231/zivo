@@ -41,10 +41,3 @@ export function seededGradient(seed: string) {
 
   return `linear-gradient(135deg, oklch(0.62 0.16 ${from}) 0%, oklch(0.48 0.14 ${to}) 100%)`;
 }
-
-export function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}

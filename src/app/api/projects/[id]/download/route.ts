@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { db } from "@/db";
 import { fragment, message, project } from "@/db/schema";
+import { guardDownload } from "@/lib/arcjet";
 import { auth } from "@/lib/auth";
 import { createZip } from "@/lib/zip";
 
@@ -12,13 +13,22 @@ function slugify(value: string) {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const denied = await guardDownload(request, session.user.id);
+
+  if (denied) {
+    return NextResponse.json(
+      { error: denied.message },
+      { status: denied.status },
+    );
   }
 
   const { id } = await params;

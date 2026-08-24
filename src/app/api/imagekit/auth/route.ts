@@ -1,14 +1,24 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { guardUpload } from "@/lib/arcjet";
 import { auth } from "@/lib/auth";
 import { createUploadAuth, isImageKitConfigured } from "@/lib/imagekit";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const denied = await guardUpload(request, session.user.id);
+
+  if (denied) {
+    return NextResponse.json(
+      { error: denied.message },
+      { status: denied.status },
+    );
   }
 
   if (!isImageKitConfigured()) {

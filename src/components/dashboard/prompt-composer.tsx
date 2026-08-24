@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Sparkles } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -51,7 +51,7 @@ export function PromptComposer({
 
   return (
     <div className="w-full">
-      <div className="relative rounded-2xl border border-border/70 bg-card/60 shadow-xs transition-colors focus-within:border-foreground/25">
+      <div className="rounded-2xl border border-border/70 bg-card/60 shadow-sm backdrop-blur-sm transition-colors focus-within:border-foreground/25 focus-within:bg-card">
         <Textarea
           value={value}
           onChange={(event) => setValue(event.target.value)}
@@ -66,24 +66,32 @@ export function PromptComposer({
           autoFocus
           placeholder="Describe the app you want to build…"
           aria-label="Describe the app you want to build"
-          className="min-h-28 resize-none border-0 bg-transparent p-4 pr-14 text-base shadow-none focus-visible:ring-0 dark:bg-transparent"
+          className="min-h-24 resize-none border-0 bg-transparent p-4 text-[15px] shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
 
-        <Button
-          size="icon"
-          onClick={() => void submit()}
-          disabled={!canSubmit}
-          aria-label="Start building"
-          className="absolute right-3 bottom-3"
-        >
-          {isPending ? <Spinner /> : <ArrowUp />}
-        </Button>
+        <div className="flex items-center justify-between gap-3 px-4 pb-3">
+          <span className="text-[11px] text-muted-foreground/60">
+            Enter to build · Shift + Enter for a new line
+          </span>
+
+          <Button
+            size="icon"
+            onClick={() => void submit()}
+            disabled={!canSubmit}
+            aria-label="Start building"
+            className="rounded-full"
+          >
+            {isPending ? <Spinner /> : <ArrowUp />}
+          </Button>
+        </div>
       </div>
 
       {isPending ? (
-        <p className="mt-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+        <p className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Spinner className="size-3.5" />
-          Spinning up a sandbox and briefing the agents…
+          <span className="shimmer-text">
+            Spinning up a sandbox and briefing the agents…
+          </span>
         </p>
       ) : (
         <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -92,9 +100,8 @@ export function PromptComposer({
               key={suggestion}
               type="button"
               onClick={() => setValue(suggestion)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+              className="rounded-full border border-border/60 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:-translate-y-px hover:border-border hover:bg-card hover:text-foreground"
             >
-              <Sparkles className="size-3" />
               {suggestion}
             </button>
           ))}

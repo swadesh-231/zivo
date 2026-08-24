@@ -6,15 +6,15 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { message, project, MessageRole, MessageType } from "@/db/schema";
 import { getCurrentUser } from "@/features/auth/session";
-import { inngest } from "@/features/inngest/client";
+import {
+  dispatchBuild,
+  INNGEST_UNREACHABLE,
+  MAX_PROMPT_LENGTH,
+} from "@/features/inngest/dispatch";
 import { fail, ok, type ActionResult } from "@/lib/action-result";
+import { guardBuild } from "@/lib/arcjet";
 import { generateProjectName, normalizeProjectName } from "../lib";
 import type { Project } from "@/db/schema";
-
-const MAX_PROMPT_LENGTH = 8000;
-
-const INNGEST_UNREACHABLE =
-  "Could not reach the Inngest server. Start it with `bun run inngest` and try again.";
 
 export async function createProject(
   prompt: string,
@@ -29,6 +29,12 @@ export async function createProject(
   if (value.length > MAX_PROMPT_LENGTH) {
     return fail(`Keep the prompt under ${MAX_PROMPT_LENGTH} characters.`);
   }
+
+  // Checked before anything is written: a build costs a sandbox and paid agent
+  // iterations, so it is the surface worth rate limiting.
+  const denied = await guardBuild(user.id, value);
+
+  if (denied) return fail(denied.message);
 
   const projectId = crypto.randomUUID();
 
@@ -51,12 +57,9 @@ export async function createProject(
     ]);
 
     try {
-      await inngest.send({
-        name: "code-agent/run",
-        data: { value, projectId: created.id },
-      });
+      await dispatchBuild(created.id, value);
     } catch (error) {
-      console.error("Failed to dispatch code-agent/run:", error);
+      console.error("Failed to dispatch a build:", error);
       await db.delete(project).where(eq(project.id, created.id));
 
       return fail(INNGEST_UNREACHABLE);

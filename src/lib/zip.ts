@@ -9,6 +9,7 @@ const SIGNATURE_CENTRAL = 0x02014b50;
 const SIGNATURE_END = 0x06054b50;
 const VERSION = 20;
 const METHOD_DEFLATE = 8;
+const FLAG_UTF8 = 0x0800;
 
 function dosDateTime(date: Date) {
   const time =
@@ -38,7 +39,7 @@ export function createZip(entries: Entry[], now = new Date()) {
     const local = Buffer.alloc(30);
     local.writeUInt32LE(SIGNATURE_LOCAL, 0);
     local.writeUInt16LE(VERSION, 4);
-    local.writeUInt16LE(0, 6);
+    local.writeUInt16LE(FLAG_UTF8, 6);
     local.writeUInt16LE(METHOD_DEFLATE, 8);
     local.writeUInt16LE(time, 10);
     local.writeUInt16LE(day, 12);
@@ -54,7 +55,7 @@ export function createZip(entries: Entry[], now = new Date()) {
     header.writeUInt32LE(SIGNATURE_CENTRAL, 0);
     header.writeUInt16LE(VERSION, 4);
     header.writeUInt16LE(VERSION, 6);
-    header.writeUInt16LE(0, 8);
+    header.writeUInt16LE(FLAG_UTF8, 8);
     header.writeUInt16LE(METHOD_DEFLATE, 10);
     header.writeUInt16LE(time, 12);
     header.writeUInt16LE(day, 14);

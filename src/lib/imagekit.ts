@@ -4,17 +4,6 @@ import { getUploadAuthParams } from "@imagekit/next/server";
 
 import { optionalEnv } from "@/lib/env";
 
-export const AVATAR_FOLDER = "/zivo/avatars";
-
-export const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
-
-export const ACCEPTED_AVATAR_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/avif",
-] as const;
-
 function credentials() {
   const publicKey = optionalEnv("IMAGEKIT_PUBLIC_KEY", "IMAGE_KIT_PUBLIC_KEY");
   const privateKey = optionalEnv(

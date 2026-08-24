@@ -20,6 +20,7 @@ import {
 import { isFailoverError, listModelCandidates, type ModelCandidate } from "@/lib/ai";
 import { FRAGMENT_TITLE_PROMPT, PROMPT, RESPONSE_PROMPT } from "@/lib/prompt";
 import { inngest } from "./client";
+import { BUILD_EVENT_NAME } from "./dispatch";
 import {
   agentOutputText,
   describeFailure,
@@ -109,7 +110,7 @@ async function runWithFailover<T>(
 export const codeAgentFunction = inngest.createFunction(
   {
     id: "code-agent",
-    triggers: { event: "code-agent/run" },
+    triggers: { event: BUILD_EVENT_NAME },
     retries: 2,
     onFailure: async ({ event, error }) => {
       const projectId = event.data.event.data.projectId as string | undefined;

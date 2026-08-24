@@ -93,6 +93,10 @@ const ROLE_ENV: Record<AgentRole, { provider: string; model: string }> = {
   response: { provider: "AI_RESPONSE_PROVIDER", model: "AI_RESPONSE_MODEL" },
 };
 
+const ROLE_PREFERRED_PROVIDER: Partial<Record<AgentRole, string>> = {
+  code: "openai",
+};
+
 function readKey(envKeys: readonly string[]) {
   for (const key of envKeys) {
     const value = process.env[key];
@@ -116,12 +120,6 @@ function findProvider(name: string) {
   return provider;
 }
 
-export function listConfiguredProviders() {
-  return PROVIDERS.filter((provider) => Boolean(readKey(provider.envKeys))).map(
-    (provider) => ({ name: provider.name, label: provider.label }),
-  );
-}
-
 function orderedProviders(role: AgentRole) {
   const requested =
     process.env[ROLE_ENV[role].provider] ?? process.env.AI_PROVIDER;
@@ -130,7 +128,16 @@ function orderedProviders(role: AgentRole) {
     Boolean(readKey(provider.envKeys)),
   );
 
-  if (!requested) return configured;
+  if (!requested) {
+    const preferred = ROLE_PREFERRED_PROVIDER[role];
+    const match = preferred
+      ? configured.find((provider) => provider.name === preferred)
+      : undefined;
+
+    if (!match) return configured;
+
+    return [match, ...configured.filter((provider) => provider !== match)];
+  }
 
   const pinned = findProvider(requested);
 
@@ -213,16 +220,6 @@ export function listModelCandidates(role: AgentRole = "code"): ModelCandidate[] 
       create: () => buildAdapter(provider, model, apiKey),
     };
   });
-}
-
-export function describeModel(role: AgentRole = "code") {
-  const [first] = listModelCandidates(role);
-
-  return { provider: first.provider, label: first.label, model: first.model };
-}
-
-export function resolveModel(role: AgentRole = "code"): AiAdapter.Any {
-  return listModelCandidates(role)[0].create();
 }
 
 const FAILOVER_PATTERN =

@@ -79,23 +79,31 @@ export function ProjectCard({ project }: { project: Project }) {
 
   return (
     <>
-      <div className="group relative overflow-hidden rounded-xl border border-border/70 bg-card/40 transition-colors hover:border-border hover:bg-card/70">
+      <div className="group relative overflow-hidden rounded-xl border border-border/70 bg-card/40 transition-all hover:-translate-y-0.5 hover:border-border hover:bg-card/80 hover:shadow-lg">
         <Link href={`/projects/${project.id}`} className="block">
           <div
-            className="relative aspect-16/10 w-full"
+            className="relative aspect-16/10 w-full overflow-hidden"
             style={{ background: seededGradient(project.id) }}
           >
-            <div className="absolute inset-0 bg-linear-to-t from-black/25 to-transparent" />
-            <span className="absolute bottom-3 left-3 font-mono text-xs text-white/80">
+            {/* Fake browser chrome, so a card reads as a running app. */}
+            <div className="absolute inset-x-0 top-0 flex h-7 items-center gap-1.5 bg-black/20 px-3 backdrop-blur-sm">
+              <span className="size-1.5 rounded-full bg-white/40" />
+              <span className="size-1.5 rounded-full bg-white/30" />
+              <span className="size-1.5 rounded-full bg-white/20" />
+            </div>
+
+            <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
+
+            <span className="absolute bottom-2.5 left-3 font-mono text-[10px] text-white/70">
               {project.id.slice(0, 8)}
             </span>
           </div>
 
           <div className="p-3.5">
-            <p className="truncate text-sm font-medium capitalize">
+            <p className="truncate text-[13px] font-medium capitalize">
               {formatProjectName(project.name)}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
               Updated {formatRelativeTime(project.updatedAt)}
             </p>
           </div>
@@ -108,7 +116,7 @@ export function ProjectCard({ project }: { project: Project }) {
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`Actions for ${project.name}`}
-                className="absolute top-2 right-2 bg-background/70 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+                className="absolute top-9 right-2 bg-background/80 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
               />
             }
           >

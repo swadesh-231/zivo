@@ -17,10 +17,6 @@ export function optionalEnv(...names: string[]): string | undefined {
   return undefined;
 }
 
-export function isProduction() {
-  return process.env.NODE_ENV === "production";
-}
-
 export function appUrl() {
   return (
     optionalEnv("BETTER_AUTH_URL", "NEXT_PUBLIC_APP_URL") ??

@@ -23,9 +23,13 @@ import { updateUser, useSession } from "@/lib/auth-client";
 import { getInitials } from "@/lib/format";
 import {
   AVATAR_ACCEPT,
+  AVATAR_HINT,
   uploadAvatar,
   validateAvatar,
 } from "@/lib/upload-avatar";
+
+const MIN_NAME_LENGTH = 2;
+const MAX_NAME_LENGTH = 80;
 
 type ProfileUser = {
   name: string;
@@ -53,9 +57,11 @@ export function ProfileForm({
   const isUploading = uploadPercent !== null;
   const trimmedName = name.trim();
   const nameChanged = trimmedName !== user.name;
+  const nameValid = trimmedName.length >= MIN_NAME_LENGTH;
+  const canSaveName = nameValid && nameChanged && !isSavingName;
 
   const saveName = async () => {
-    if (!trimmedName || !nameChanged) return;
+    if (!canSaveName) return;
 
     setIsSavingName(true);
     const { error } = await updateUser({ name: trimmedName });
@@ -194,7 +200,7 @@ export function ProfileForm({
             ) : (
               <p className="text-xs text-muted-foreground">
                 {uploadsEnabled
-                  ? "PNG, JPEG, WebP, or AVIF up to 4 MB."
+                  ? AVATAR_HINT
                   : "Uploads are unavailable until IMAGEKIT_PUBLIC_KEY and IMAGEKIT_PRIVATE_KEY are set."}
               </p>
             )}
@@ -214,20 +220,18 @@ export function ProfileForm({
               }
             }}
             placeholder="Your name"
-            maxLength={80}
+            maxLength={MAX_NAME_LENGTH}
             className="max-w-sm"
           />
           <FieldDescription>
-            Used across Zivo. Two to eighty characters.
+            Used across Zivo. Between {MIN_NAME_LENGTH} and {MAX_NAME_LENGTH}{" "}
+            characters.
           </FieldDescription>
         </Field>
       </CardContent>
 
       <CardFooter className="justify-end border-t">
-        <Button
-          onClick={() => void saveName()}
-          disabled={!trimmedName || !nameChanged || isSavingName}
-        >
+        <Button onClick={() => void saveName()} disabled={!canSaveName}>
           {isSavingName ? <Spinner /> : null}
           Save changes
         </Button>
