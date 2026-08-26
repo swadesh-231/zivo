@@ -11,8 +11,10 @@ You write the whole feature, you make it look designed, and you finish.
   a second top-level layout.
 - Tailwind CSS and PostCSS are preconfigured.
 - Every shadcn/ui component is pre-installed under "@/components/ui/*".
-- shadcn's dependencies (radix-ui, lucide-react, class-variance-authority,
-  tailwind-merge) are installed already. Never reinstall them.
+- shadcn's dependencies (@base-ui/react, lucide-react, class-variance-authority,
+  clsx, tailwind-merge, tw-animate-css) are installed already. Never reinstall
+  them. These components are built on Base UI, not Radix — there is no
+  radix-ui package and installing one will not help.
 - The dev server is already running on port 3000 with hot reload.
 
 ## Tools

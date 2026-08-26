@@ -12,7 +12,7 @@ iterating.
 | Framework | Next.js 16 (App Router, Turbopack) |
 | UI | Tailwind CSS v4, shadcn on Base UI |
 | Data | Neon Postgres via Drizzle ORM |
-| Auth | Better Auth with Google OAuth |
+| Auth | Better Auth with Google and GitHub OAuth |
 | Agents | Inngest + `@inngest/agent-kit` |
 | Sandboxes | E2B |
 | Uploads | ImageKit |
@@ -35,19 +35,22 @@ bun run inngest
 ```
 
 The agents run inside an E2B template that has to be built once before the
-first project. Without it every build fails with `template 'c0-build' not
-found`:
+first project. Without it every build fails with `template 'nextjs-developer'
+not found`:
 
 ```bash
 bun run sandbox:build
 ```
+
+See [`sandbox/next-js-developer`](sandbox/next-js-developer) for what the
+template contains and how to change it.
 
 ## Routes
 
 | Path | Access | Purpose |
 | --- | --- | --- |
 | `/` | Signed out only | Landing page |
-| `/sign-in` | Signed out only | Google sign-in |
+| `/sign-in` | Signed out only | Google and GitHub sign-in |
 | `/dashboard` | Signed in | Prompt composer and project grid |
 | `/projects/[id]` | Signed in | Chat, live preview, generated source |
 | `/settings` | Signed in | Profile photo, display name, appearance |
@@ -60,8 +63,16 @@ The project screen is three panels: conversation and live build activity on the
 left, generated source in the middle, running preview on the right. The preview
 toolbar downloads the whole generated project as a ZIP.
 
-Sign-in is Google-only, so Google owns the email address — there is no email
-change or verification flow in Zivo.
+Sign-in is OAuth-only, so the provider owns the email address — there is no
+email change or verification flow in Zivo. Signing in with GitHub on an address
+that already has a Google account lands on that same account rather than a
+second one: `account.accountLinking` in `src/lib/auth.ts` links them, and both
+providers report whether the address is verified on their side.
+
+Providers are opt-in per environment. `src/lib/auth-providers.ts` reads the
+credential pairs that are actually set, Better Auth is configured with those,
+and `/sign-in` renders one button per provider — so a deployment with only
+Google keys still boots, and adding GitHub keys is the whole change.
 
 ## Model providers
 
@@ -133,18 +144,26 @@ blocking:
   to the coding agent, so the user is the principal rather than untrusted
   third-party content — a legitimate prompt like "build a page about prompt
   injection" would trip a `LIVE` rule.
-- **Bot detection** on the auth route, which also serves the Google OAuth
-  callback. A false positive there locks people out of the only way in, and
-  sign-in is Google-only so there are no passwords to stuff.
+- **Bot detection** on the auth route, which also serves the OAuth callbacks.
+  A false positive there locks people out of the only way in, and sign-in is
+  OAuth-only so there are no passwords to stuff.
 
 Every guard fails open: if Arcjet errors or is unreachable, the request is
 allowed rather than taking the product down with it.
 
 ## Environment
 
-The required variables are `DATABASE_URL`, `BETTER_AUTH_SECRET`,
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `E2B_API_KEY`, and at least one
-model provider key.
+The required variables are `DATABASE_URL`, `BETTER_AUTH_SECRET`, `E2B_API_KEY`,
+at least one model provider key, and at least one OAuth provider pair:
+
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+- `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`
+
+Register the callback URL with each provider as
+`{BETTER_AUTH_URL}/api/auth/callback/{provider}` — for local development that is
+`http://localhost:3000/api/auth/callback/google` and
+`http://localhost:3000/api/auth/callback/github`. A GitHub OAuth App takes only
+one callback URL, so development and production need separate apps.
 
 Optional:
 
@@ -163,4 +182,5 @@ bun run db:generate
 bun run db:migrate
 bun run db:studio
 bun run sandbox:build   # build the E2B template (required once)
+bun run sandbox:build:dev  # build it under a -dev alias instead
 ```

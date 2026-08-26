@@ -1,21 +1,55 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUp } from "lucide-react";
+import {
+  ArrowUp,
+  CalendarDays,
+  ChartLine,
+  Newspaper,
+  SquareKanban,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
+import { MAX_PROMPT_LENGTH } from "@/features/inngest/constants";
 import { useCreateProject } from "@/features/projects/hooks/projects";
+import { cn } from "@/lib/utils";
 
+/**
+ * Ragged pills wrapping over two rows read as an accident. A fixed grid of
+ * equal tiles gives the row a shape, and the short label carries the scan while
+ * the full sentence goes into the composer.
+ */
 const SUGGESTIONS = [
-  "A project tracker with a board view and filters",
-  "A finance dashboard with charts and a transactions table",
-  "A blog with a post list, tags, and a reading view",
-  "A booking form with a date picker and confirmation",
-];
+  {
+    icon: SquareKanban,
+    label: "Project tracker",
+    prompt: "A project tracker with a board view and filters",
+  },
+  {
+    icon: ChartLine,
+    label: "Finance dashboard",
+    prompt: "A finance dashboard with charts and a transactions table",
+  },
+  {
+    icon: Newspaper,
+    label: "Blog",
+    prompt: "A blog with a post list, tags, and a reading view",
+  },
+  {
+    icon: CalendarDays,
+    label: "Booking form",
+    prompt: "A booking form with a date picker and confirmation",
+  },
+] as const;
+
+/** Only worth showing once the limit is actually in reach. */
+const COUNTER_THRESHOLD = MAX_PROMPT_LENGTH - 500;
+
+const PROMPT_INPUT_ID = "dashboard-prompt";
 
 export function PromptComposer({
   initialPrompt = "",
@@ -24,22 +58,24 @@ export function PromptComposer({
 }) {
   const router = useRouter();
   const createProject = useCreateProject();
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState(initialPrompt);
 
   const isPending = createProject.isPending;
-  const canSubmit = Boolean(value.trim()) && !isPending;
+  const trimmed = value.trim();
+  const isOverLimit = value.length > MAX_PROMPT_LENGTH;
+  const canSubmit = Boolean(trimmed) && !isPending && !isOverLimit;
 
   const submit = async () => {
     if (!canSubmit) return;
 
-    const prompt = value.trim();
     setValue("");
 
     try {
-      const project = await createProject.mutateAsync(prompt);
+      const project = await createProject.mutateAsync(trimmed);
       router.push(`/projects/${project.id}`);
     } catch (error) {
-      setValue(prompt);
+      setValue(trimmed);
       toast.add({
         type: "error",
         title: "Could not start the build",
@@ -49,10 +85,23 @@ export function PromptComposer({
     }
   };
 
+  const applySuggestion = (prompt: string) => {
+    setValue(prompt);
+    inputRef.current?.focus();
+  };
+
   return (
     <div className="w-full">
-      <div className="rounded-2xl border border-border/70 bg-card/60 shadow-sm backdrop-blur-sm transition-colors focus-within:border-foreground/25 focus-within:bg-card">
+      <div
+        className={cn(
+          "rounded-2xl border border-border/70 bg-card/60 shadow-sm backdrop-blur-sm transition-colors",
+          "focus-within:border-foreground/25 focus-within:bg-card",
+          isOverLimit && "border-destructive/50",
+        )}
+      >
         <Textarea
+          ref={inputRef}
+          id={PROMPT_INPUT_ID}
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={(event) => {
@@ -61,17 +110,31 @@ export function PromptComposer({
               void submit();
             }
           }}
-          rows={3}
           disabled={isPending}
           autoFocus
           placeholder="Describe the app you want to build…"
           aria-label="Describe the app you want to build"
-          className="min-h-24 resize-none border-0 bg-transparent p-4 text-[15px] shadow-none focus-visible:ring-0 dark:bg-transparent"
+          // field-sizing grows the box with the text, so it starts at two lines
+          // instead of holding open an empty third one.
+          className="max-h-64 min-h-12 resize-none border-0 bg-transparent px-4 pt-3.5 pb-0 text-[15px] leading-relaxed shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
 
-        <div className="flex items-center justify-between gap-3 px-4 pb-3">
-          <span className="text-[11px] text-muted-foreground/60">
-            Enter to build · Shift + Enter for a new line
+        <div className="flex items-center justify-between gap-3 px-3 pt-2 pb-3 pl-4">
+          <span className="text-[11px] text-muted-foreground/70">
+            {isOverLimit ? (
+              <span className="text-destructive">
+                {value.length.toLocaleString()} /{" "}
+                {MAX_PROMPT_LENGTH.toLocaleString()} characters
+              </span>
+            ) : value.length > COUNTER_THRESHOLD ? (
+              `${value.length.toLocaleString()} / ${MAX_PROMPT_LENGTH.toLocaleString()}`
+            ) : (
+              <>
+                <kbd className="font-sans font-medium">Enter</kbd> to build ·{" "}
+                <kbd className="font-sans font-medium">Shift</kbd> +{" "}
+                <kbd className="font-sans font-medium">Enter</kbd> for a new line
+              </>
+            )}
           </span>
 
           <Button
@@ -79,7 +142,7 @@ export function PromptComposer({
             onClick={() => void submit()}
             disabled={!canSubmit}
             aria-label="Start building"
-            className="rounded-full"
+            className="size-8 shrink-0 rounded-full"
           >
             {isPending ? <Spinner /> : <ArrowUp />}
           </Button>
@@ -87,22 +150,26 @@ export function PromptComposer({
       </div>
 
       {isPending ? (
-        <p className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+        <p className="mt-5 flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Spinner className="size-3.5" />
           <span className="shimmer-text">
             Spinning up a sandbox and briefing the agents…
           </span>
         </p>
       ) : (
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {SUGGESTIONS.map((suggestion) => (
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {SUGGESTIONS.map(({ icon: Icon, label, prompt }) => (
             <button
-              key={suggestion}
+              key={label}
               type="button"
-              onClick={() => setValue(suggestion)}
-              className="rounded-full border border-border/60 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:-translate-y-px hover:border-border hover:bg-card hover:text-foreground"
+              onClick={() => applySuggestion(prompt)}
+              title={prompt}
+              className="group flex items-center gap-2 rounded-xl border border-border/60 bg-card/40 px-3 py-2.5 text-left transition-colors hover:border-border hover:bg-card"
             >
-              {suggestion}
+              <Icon className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
+              <span className="truncate text-xs text-muted-foreground transition-colors group-hover:text-foreground">
+                {label}
+              </span>
             </button>
           ))}
         </div>

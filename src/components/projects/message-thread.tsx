@@ -95,40 +95,50 @@ export function MessageThread({
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-5 p-4">
-        <Skeleton className="h-12 w-3/5 self-end rounded-2xl" />
-        <Skeleton className="h-20 w-full rounded-xl" />
-        <Skeleton className="h-14 w-4/5 rounded-xl" />
+      <div className="flex min-h-full flex-col p-4">
+        <div className="flex-1" />
+        <div className="flex flex-col gap-5">
+          <Skeleton className="h-12 w-3/5 self-end rounded-2xl" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-14 w-4/5 rounded-xl" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      {messages.map((entry) =>
-        entry.role === "USER" ? (
-          <UserMessage key={entry.id} entry={entry} />
-        ) : (
-          <AssistantMessage
-            key={entry.id}
-            entry={entry}
-            activeFragmentId={activeFragmentId}
-            onSelectFragment={onSelectFragment}
+    // A short conversation sits on the composer rather than stranding it below
+    // a screen of empty panel. The spacer collapses once the thread overflows,
+    // which `justify-end` would not do without clipping the oldest message.
+    <div className="flex min-h-full flex-col p-4">
+      <div className="flex-1" />
+
+      <div className="flex flex-col gap-6">
+        {messages.map((entry) =>
+          entry.role === "USER" ? (
+            <UserMessage key={entry.id} entry={entry} />
+          ) : (
+            <AssistantMessage
+              key={entry.id}
+              entry={entry}
+              activeFragmentId={activeFragmentId}
+              onSelectFragment={onSelectFragment}
+            />
+          ),
+        )}
+
+        {buildState === "building" ? (
+          <ActivityFeed
+            events={buildEvents}
+            startedAt={messages.at(-1)?.createdAt ?? new Date()}
+            isBuilding
           />
-        ),
-      )}
+        ) : null}
 
-      {buildState === "building" ? (
-        <ActivityFeed
-          events={buildEvents}
-          startedAt={messages.at(-1)?.createdAt ?? new Date()}
-          isBuilding
-        />
-      ) : null}
+        {buildState === "stalled" ? <StalledNotice /> : null}
 
-      {buildState === "stalled" ? <StalledNotice /> : null}
-
-      <div ref={endRef} />
+        <div ref={endRef} />
+      </div>
     </div>
   );
 }

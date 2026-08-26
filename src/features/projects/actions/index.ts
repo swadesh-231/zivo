@@ -7,10 +7,10 @@ import { db } from "@/db";
 import { message, project, MessageRole, MessageType } from "@/db/schema";
 import { getCurrentUser } from "@/features/auth/session";
 import {
-  dispatchBuild,
   INNGEST_UNREACHABLE,
   MAX_PROMPT_LENGTH,
-} from "@/features/inngest/dispatch";
+} from "@/features/inngest/constants";
+import { dispatchBuild } from "@/features/inngest/dispatch";
 import { fail, ok, type ActionResult } from "@/lib/action-result";
 import { guardBuild } from "@/lib/arcjet";
 import { generateProjectName, normalizeProjectName } from "../lib";

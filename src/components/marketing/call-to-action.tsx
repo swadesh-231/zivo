@@ -16,7 +16,8 @@ export function CallToAction() {
           Your first build takes about two minutes
         </h2>
         <p className="text-balance-pretty mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-          Sign in with Google, describe a screen, and watch the agents work.
+          Sign in with Google or GitHub, describe a screen, and watch the agents
+          work.
         </p>
         <Button
           size="lg"

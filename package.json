@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "sandbox:build": "tsx sandbox/build.ts"
+    "sandbox:build": "bun run ./sandbox/next-js-developer/build.prod.ts",
+    "sandbox:build:dev": "bun run ./sandbox/next-js-developer/build.dev.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.46",

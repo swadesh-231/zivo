@@ -82,7 +82,7 @@ export function ProjectCard({ project }: { project: Project }) {
       <div className="group relative overflow-hidden rounded-xl border border-border/70 bg-card/40 transition-all hover:-translate-y-0.5 hover:border-border hover:bg-card/80 hover:shadow-lg">
         <Link href={`/projects/${project.id}`} className="block">
           <div
-            className="relative aspect-16/10 w-full overflow-hidden"
+            className="relative aspect-16/9 w-full overflow-hidden"
             style={{ background: seededGradient(project.id) }}
           >
             {/* Fake browser chrome, so a card reads as a running app. */}
@@ -92,11 +92,7 @@ export function ProjectCard({ project }: { project: Project }) {
               <span className="size-1.5 rounded-full bg-white/20" />
             </div>
 
-            <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
-
-            <span className="absolute bottom-2.5 left-3 font-mono text-[10px] text-white/70">
-              {project.id.slice(0, 8)}
-            </span>
+            <div className="absolute inset-0 bg-linear-to-t from-black/30 via-transparent to-transparent" />
           </div>
 
           <div className="p-3.5">

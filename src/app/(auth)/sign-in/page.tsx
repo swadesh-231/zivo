@@ -1,19 +1,28 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { ArrowLeft } from "lucide-react";
 
-import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { SocialSignIn } from "@/components/auth/social-sign-in";
 import { Logo } from "@/components/brand/logo";
 import { GridBackdrop } from "@/components/marketing/grid-backdrop";
 import { Skeleton } from "@/components/ui/skeleton";
+import { listProviderLabels } from "@/lib/auth-config";
+import { configuredSocialProviders } from "@/lib/auth-providers";
 
 export const metadata: Metadata = {
   title: "Sign in",
   description: "Sign in to Zivo to start building apps from a prompt.",
 };
 
-export default function SignInPage() {
+export default async function SignInPage() {
+  // The provider list comes from env, so it has to be read per request rather
+  // than baked into a prerender at build time.
+  await connection();
+
+  const providers = configuredSocialProviders();
+
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center px-5 py-16">
       <GridBackdrop />
@@ -38,14 +47,24 @@ export default function SignInPage() {
         </div>
 
         <div className="mt-8 rounded-2xl border border-border/70 bg-card/60 p-6 backdrop-blur-sm">
-          <Suspense fallback={<Skeleton className="h-9 w-full rounded-lg" />}>
-            <GoogleSignInButton />
+          <Suspense
+            fallback={
+              <div className="flex flex-col gap-2.5">
+                {providers.map((provider) => (
+                  <Skeleton key={provider} className="h-11 w-full rounded-lg" />
+                ))}
+              </div>
+            }
+          >
+            <SocialSignIn providers={providers} />
           </Suspense>
 
-          <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
-            Zivo uses Google only to identify your account. We never post on
-            your behalf.
-          </p>
+          {providers.length > 0 ? (
+            <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
+              Zivo uses {listProviderLabels(providers)} only to identify your
+              account. We never post on your behalf.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

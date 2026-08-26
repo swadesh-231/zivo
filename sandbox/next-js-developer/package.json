@@ -1,0 +1,10 @@
+{
+  "name": "nextjs-developer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "E2B sandbox template Zivo builds apps in. `name` is the template alias.",
+  "scripts": {
+    "build": "bun run ./build.prod.ts",
+    "build:dev": "bun run ./build.dev.ts"
+  }
+}

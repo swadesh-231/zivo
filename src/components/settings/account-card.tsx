@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, LogOut } from "lucide-react";
 
+import { ProviderMark } from "@/components/auth/provider-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,15 +17,22 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 import { signOut } from "@/lib/auth-client";
+import {
+  listProviderLabels,
+  SOCIAL_PROVIDER_LABELS,
+  type SocialProvider,
+} from "@/lib/auth-config";
 
 export function AccountCard({
   email,
   emailVerified,
   createdAt,
+  providers,
 }: {
   email: string;
   emailVerified: boolean;
   createdAt: string;
+  providers: SocialProvider[];
 }) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
@@ -53,8 +61,9 @@ export function AccountCard({
       <CardHeader>
         <CardTitle>Account</CardTitle>
         <CardDescription>
-          Zivo signs you in with Google, so Google owns your email address.
-          Change it there and it updates here on your next sign-in.
+          {providers.length > 0
+            ? `Zivo signs you in with ${listProviderLabels(providers)}, so your email address lives there. Change it with your provider and it updates here on your next sign-in.`
+            : "Zivo signs you in with a connected provider, so your email address lives there."}
         </CardDescription>
       </CardHeader>
 
@@ -65,10 +74,26 @@ export function AccountCard({
           {emailVerified ? (
             <Badge variant="secondary">
               <BadgeCheck data-icon="inline-start" />
-              Verified by Google
+              Verified
             </Badge>
           ) : null}
         </div>
+
+        {providers.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="text-sm text-muted-foreground">Signed in with</span>
+            {providers.map((provider) => (
+              <Badge key={provider} variant="secondary">
+                <ProviderMark
+                  provider={provider}
+                  className="size-3.5"
+                  data-icon="inline-start"
+                />
+                {SOCIAL_PROVIDER_LABELS[provider]}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="text-sm text-muted-foreground">Member since</span>

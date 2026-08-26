@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
 import { UserMenu } from "@/components/app/user-menu";
 import { ModeToggle } from "@/components/theme/mode-toggle";
-import { Button } from "@/components/ui/button";
 
 type HeaderUser = {
   name: string;
@@ -26,16 +24,6 @@ export function AppHeader({ user }: { user: HeaderUser }) {
         </Link>
 
         <div className="flex items-center gap-1.5">
-          <Button
-            size="sm"
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/dashboard" />}
-            className="hidden sm:inline-flex"
-          >
-            <Plus data-icon="inline-start" />
-            New project
-          </Button>
           <ModeToggle />
           <UserMenu user={user} />
         </div>

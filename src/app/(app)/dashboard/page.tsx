@@ -27,22 +27,24 @@ export default async function DashboardPage({
     <div className="relative flex-1">
       <GridBackdrop />
 
-      <div className="mx-auto w-full max-w-6xl px-5 pt-16 pb-20">
+      {/* Tight on purpose: this is a workspace someone returns to, so the first
+          row of their projects has to be reachable without scrolling. */}
+      <div className="mx-auto w-full max-w-6xl px-5 pt-10 pb-16 sm:pt-14">
         <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-3xl font-medium tracking-tight sm:text-4xl">
+          <h1 className="text-2xl font-medium tracking-tight text-balance sm:text-3xl">
             What are we building, {firstName(user.name)}?
           </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
             Describe a screen or a whole app. The agents scaffold it, run it,
             and hand back the source.
           </p>
 
-          <div className="mt-8">
+          <div className="mt-6">
             <PromptComposer initialPrompt={initialPrompt} />
           </div>
         </div>
 
-        <div className="mt-20">
+        <div className="mt-12 sm:mt-14">
           <ProjectList />
         </div>
       </div>

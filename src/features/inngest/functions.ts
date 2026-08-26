@@ -24,7 +24,7 @@ import {
   RESPONSE_PROMPT,
 } from "@/prompt";
 import { inngest } from "./client";
-import { BUILD_EVENT_NAME } from "./dispatch";
+import { BUILD_EVENT_NAME, SANDBOX_TTL_MS } from "./constants";
 import {
   agentOutputText,
   describeFailure,
@@ -33,10 +33,13 @@ import {
   toolErrorMessage,
 } from "./utils";
 
-const SANDBOX_TEMPLATE = process.env.E2B_TEMPLATE_ID ?? "c0-build";
+// Matches the `name` in sandbox/next-js-developer/package.json, which is the
+// alias `bun run sandbox:build` publishes to. Set E2B_TEMPLATE_ID to point at a
+// `-dev` build instead.
+const SANDBOX_TEMPLATE = process.env.E2B_TEMPLATE_ID ?? "nextjs-developer";
 
 const SANDBOX_TIMEOUT_MS = Number(
-  process.env.E2B_SANDBOX_TIMEOUT_MS ?? 15 * 60 * 1000,
+  process.env.E2B_SANDBOX_TIMEOUT_MS ?? SANDBOX_TTL_MS,
 );
 
 const MAX_ITERATIONS = Number(process.env.AI_MAX_ITERATIONS ?? 25);

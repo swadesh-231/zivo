@@ -18,7 +18,7 @@ import { useProjects } from "@/features/projects/hooks/projects";
 function CardSkeleton() {
   return (
     <div className="overflow-hidden rounded-xl border border-border/70">
-      <Skeleton className="aspect-16/10 w-full rounded-none" />
+      <Skeleton className="aspect-16/9 w-full rounded-none" />
       <div className="space-y-2 p-3.5">
         <Skeleton className="h-4 w-2/3" />
         <Skeleton className="h-3 w-1/3" />
@@ -59,17 +59,17 @@ export function ProjectList() {
 
   return (
     <section>
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-sm font-medium">
+      <div className="mb-4 flex h-8 items-center justify-between gap-4 border-b border-border/60 pb-4">
+        <h2 className="flex items-center gap-2 text-sm font-medium">
           Projects
           {projects?.length ? (
-            <span className="ml-2 text-muted-foreground">
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground tabular-nums">
               {projects.length}
             </span>
           ) : null}
         </h2>
 
-        {projects && projects.length > 4 ? (
+        {projects && projects.length > 3 ? (
           <div className="relative w-full max-w-56">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input

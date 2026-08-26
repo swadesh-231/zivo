@@ -107,7 +107,11 @@ export function ProjectView({
   const codePanel = <CodeViewer files={activeFragment?.files ?? {}} />;
 
   const previewPanel = (
-    <PreviewPanel fragment={activeFragment} projectId={projectId} />
+    <PreviewPanel
+      fragment={activeFragment}
+      projectId={projectId}
+      onViewCode={() => setMobileView("code")}
+    />
   );
 
   const tabs = <WorkspaceTabs value={pane} onChange={setPane} />;
@@ -120,6 +124,7 @@ export function ProjectView({
         fragment={activeFragment}
         projectId={projectId}
         leading={tabs}
+        onViewCode={() => setPane("code")}
       />
     );
 

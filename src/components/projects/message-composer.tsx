@@ -53,18 +53,21 @@ export function MessageComposer({
               void submit();
             }
           }}
-          rows={2}
           disabled={disabled}
           placeholder={
             disabled ? "Waiting for the current build…" : "Ask for a change…"
           }
           aria-label="Ask for a change"
-          className="min-h-14 resize-none border-0 bg-transparent p-3 text-[13px] shadow-none focus-visible:ring-0 dark:bg-transparent"
+          // Same as the dashboard composer: let field-sizing grow the box
+          // rather than holding an empty second line open.
+          className="max-h-48 min-h-10 resize-none border-0 bg-transparent px-3 pt-2.5 pb-0 text-[13px] leading-relaxed shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
 
-        <div className="flex items-center justify-between gap-2 px-3 pb-2.5">
-          <span className="text-[11px] text-muted-foreground/60">
-            Enter to send · Shift + Enter for a new line
+        <div className="flex items-center justify-between gap-2 px-2.5 pt-1.5 pb-2 pl-3">
+          <span className="truncate text-[11px] text-muted-foreground/70">
+            <kbd className="font-sans font-medium">Enter</kbd> to send ·{" "}
+            <kbd className="font-sans font-medium">Shift</kbd> +{" "}
+            <kbd className="font-sans font-medium">Enter</kbd> for a new line
           </span>
 
           <Button

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { AccountCard } from "@/components/settings/account-card";
 import { AppearanceCard } from "@/components/settings/appearance-card";
 import { ProfileForm } from "@/components/settings/profile-form";
-import { requireUser } from "@/features/auth/session";
+import { getLinkedProviders, requireUser } from "@/features/auth/session";
 import { isImageKitConfigured } from "@/lib/imagekit";
 
 export const metadata: Metadata = {
@@ -18,6 +18,7 @@ const DATE_FORMAT = new Intl.DateTimeFormat("en", {
 
 export default async function SettingsPage() {
   const user = await requireUser();
+  const providers = await getLinkedProviders();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-12">
@@ -38,6 +39,7 @@ export default async function SettingsPage() {
           email={user.email}
           emailVerified={user.emailVerified}
           createdAt={DATE_FORMAT.format(new Date(user.createdAt))}
+          providers={providers}
         />
       </div>
     </div>

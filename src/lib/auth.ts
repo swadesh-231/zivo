@@ -5,9 +5,23 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { appUrl, optionalEnv, requiredEnv } from "@/lib/env";
-import { AUTH_COOKIE_PREFIX } from "@/lib/auth-config";
+import { AUTH_COOKIE_PREFIX, type SocialProvider } from "@/lib/auth-config";
+import { socialProviderCredentials } from "@/lib/auth-providers";
 
 const DAY = 60 * 60 * 24;
+
+const socialProviders = socialProviderCredentials();
+const enabledProviders = Object.keys(socialProviders) as SocialProvider[];
+
+if (enabledProviders.length === 0) {
+  // Social sign-in is the only way in, so this leaves the app unusable. It is
+  // still not worth throwing at import time: that would take down every route
+  // that touches a session instead of just the sign-in page, which renders its
+  // own "not configured" state.
+  console.error(
+    "No sign-in provider is configured. Set GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET or GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET.",
+  );
+}
 
 export const auth = betterAuth({
   appName: "Zivo",
@@ -21,16 +35,15 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: false,
   },
-  socialProviders: {
-    google: {
-      clientId: requiredEnv("GOOGLE_CLIENT_ID"),
-      clientSecret: requiredEnv("GOOGLE_CLIENT_SECRET"),
-    },
-  },
+  socialProviders,
   account: {
     accountLinking: {
       enabled: true,
-      trustedProviders: ["google"],
+      // Someone who signs in with GitHub and then Google on the same address
+      // lands on one account rather than two. Both providers report whether
+      // the address is verified on their side, which is what makes matching on
+      // email safe here.
+      trustedProviders: enabledProviders,
     },
   },
   session: {
