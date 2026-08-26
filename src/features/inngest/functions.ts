@@ -36,7 +36,15 @@ import {
 // Matches the `name` in sandbox/next-js-developer/package.json, which is the
 // alias `bun run sandbox:build` publishes to. Set E2B_TEMPLATE_ID to point at a
 // `-dev` build instead.
-const SANDBOX_TEMPLATE = process.env.E2B_TEMPLATE_ID ?? "nextjs-developer";
+//
+// The alias is namespaced on purpose. E2B resolves an unknown alias against its
+// public templates, so the un-prefixed `nextjs-developer` silently resolved to
+// E2B's own community image (envd 0.1.2) whenever this account had not built
+// its own — sandboxes came up from a completely different image than the one
+// `sandbox/next-js-developer/template.ts` builds and CODE_AGENT_PROMPT
+// describes. A prefixed alias has no public counterpart to fall through to, so
+// a missing build fails loudly instead.
+const SANDBOX_TEMPLATE = process.env.E2B_TEMPLATE_ID ?? "zivo-nextjs-developer";
 
 const SANDBOX_TIMEOUT_MS = Number(
   process.env.E2B_SANDBOX_TIMEOUT_MS ?? SANDBOX_TTL_MS,
@@ -69,6 +77,38 @@ async function emit(
 
 async function clearEvents(projectId: string) {
   await db.delete(buildEvent).where(eq(buildEvent.projectId, projectId));
+}
+
+/**
+ * Kill the sandboxes a failed run left behind.
+ *
+ * A failed run leaves its sandbox alive until its create-time timeout expires,
+ * and `retries` means a single bad build can strand three of them. Nothing will
+ * ever serve a preview from those — the fragment that would point at one is
+ * only written on the success path — so they are pure cost.
+ *
+ * Scoped by `buildId`, not by project: a project whose previous build succeeded
+ * still has a healthy sandbox serving that fragment's preview, and killing it
+ * because a *later* build failed would take a working preview away from someone
+ * looking at it. Best-effort either way — the create-time timeout is still the
+ * backstop if this fails.
+ */
+async function releaseSandboxes(projectId: string, buildId: string) {
+  try {
+    const running = await Sandbox.list({
+      query: { metadata: { projectId, buildId }, state: ["running"] },
+    }).nextItems();
+
+    await Promise.all(
+      running.map((info) =>
+        Sandbox.kill(info.sandboxId).catch((error: unknown) => {
+          console.error(`Failed to kill sandbox ${info.sandboxId}:`, error);
+        }),
+      ),
+    );
+  } catch (error) {
+    console.error("Failed to list sandboxes for cleanup:", error);
+  }
 }
 
 async function recordFailure(projectId: string, content: string) {
@@ -124,8 +164,11 @@ export const codeAgentFunction = inngest.createFunction(
 
       if (!projectId) return;
 
+      const buildId = event.data.event.id ?? projectId;
+
       await recordFailure(projectId, describeFailure(error));
       await emit(projectId, BuildEventKind.ERROR, "Build failed");
+      await releaseSandboxes(projectId, buildId);
     },
   },
   async ({ event, step }) => {
@@ -138,10 +181,14 @@ export const codeAgentFunction = inngest.createFunction(
       return null;
     });
 
+    // Identifies every sandbox this run creates, including the ones a retry
+    // makes, so a failure can reclaim exactly its own and nothing else.
+    const buildId = event.id ?? projectId;
+
     const sandboxId = await step.run("create-sandbox", async () => {
       const sandbox = await Sandbox.create(SANDBOX_TEMPLATE, {
         timeoutMs: SANDBOX_TIMEOUT_MS,
-        metadata: { projectId },
+        metadata: { projectId, buildId },
       });
 
       return sandbox.sandboxId;
@@ -419,6 +466,14 @@ export const codeAgentFunction = inngest.createFunction(
       await emit(projectId, BuildEventKind.STATUS, "Booting the preview");
 
       const sandbox = await Sandbox.connect(sandboxId);
+
+      // The create-time timeout started counting when the sandbox booted, but
+      // the client measures a preview's life from `fragment.createdAt` — the
+      // moment the build finishes. On a build that took ten minutes those are
+      // ten minutes apart, so the iframe loads E2B's "Sandbox Not Found" page
+      // while the UI still believes the preview is live. Restarting the clock
+      // here makes the TTL the client assumes the TTL the sandbox actually has.
+      await sandbox.setTimeout(SANDBOX_TIMEOUT_MS);
 
       return `https://${sandbox.getHost(PREVIEW_PORT)}`;
     });

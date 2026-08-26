@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/toast";
 import { useCreateMessage } from "@/features/messages/hooks/messages";
+import { cn } from "@/lib/utils";
 
 export function MessageComposer({
   projectId,
@@ -43,7 +44,16 @@ export function MessageComposer({
 
   return (
     <div className="shrink-0 border-t border-border/60 p-3">
-      <div className="rounded-2xl border border-border/70 bg-card/50 transition-colors focus-within:border-foreground/25 focus-within:bg-card">
+      <div
+        // While a build is running the field cannot take input, so the whole
+        // composer recedes rather than inviting a click that does nothing.
+        className={cn(
+          "rounded-2xl border bg-elevated/60 transition-all",
+          disabled
+            ? "border-border/50 opacity-60"
+            : "border-border/70 focus-within:border-foreground/25 focus-within:bg-elevated focus-within:ring-[3px] focus-within:ring-foreground/10",
+        )}
+      >
         <Textarea
           value={value}
           onChange={(event) => setValue(event.target.value)}

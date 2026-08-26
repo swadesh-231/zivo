@@ -1,4 +1,4 @@
-# `nextjs-developer` — E2B sandbox template
+# `zivo-nextjs-developer` — E2B sandbox template
 
 The image every Zivo build runs inside: Next.js on Bun, Tailwind v4, and the
 full shadcn/ui set, with a dev server already serving on port 3000.
@@ -6,14 +6,14 @@ full shadcn/ui set, with a dev server already serving on port 3000.
 ## Build it
 
 ```bash
-bun run sandbox:build       # publishes the "nextjs-developer" alias
-bun run sandbox:build:dev   # publishes "nextjs-developer-dev" instead
+bun run sandbox:build       # publishes the "zivo-nextjs-developer" alias
+bun run sandbox:build:dev   # publishes "zivo-nextjs-developer-dev" instead
 ```
 
 Both need `E2B_API_KEY` in `.env`. The app resolves the alias from
 `E2B_TEMPLATE_ID`, defaulting to the `name` in `package.json` — so to try a
 template change without disturbing anyone, build the `-dev` alias and set
-`E2B_TEMPLATE_ID=nextjs-developer-dev`.
+`E2B_TEMPLATE_ID=zivo-nextjs-developer-dev`.
 
 ## What the build does
 

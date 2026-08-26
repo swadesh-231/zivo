@@ -26,11 +26,11 @@ function StalledNotice() {
 
 function UserMessage({ entry }: { entry: ProjectMessage }) {
   return (
-    <div className="fade-up flex flex-col items-end gap-1">
-      <div className="max-w-[88%] rounded-2xl rounded-br-md bg-muted px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap">
+    <div className="fade-up group flex flex-col items-end gap-1">
+      <div className="max-w-[88%] rounded-2xl rounded-br-md border border-border/60 bg-elevated px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap shadow-xs">
         {entry.content}
       </div>
-      <span className="px-1 text-[11px] text-muted-foreground/60">
+      <span className="px-1 text-[11px] text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60 group-focus-within:text-muted-foreground/60">
         {formatRelativeTime(entry.createdAt)}
       </span>
     </div>

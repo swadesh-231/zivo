@@ -51,6 +51,13 @@ export function describeFailure(error: unknown) {
     return "The E2B sandbox template is missing. Run `bun run sandbox:build` and try again.";
   }
 
+  // E2B rejects sandboxes created with `secure: true` (the SDK default) on
+  // templates whose envd predates secured access. In practice that means the
+  // template was never rebuilt on this account.
+  if (/secured access/i.test(detail)) {
+    return "The E2B sandbox template predates secured access. Rebuild it with `bun run sandbox:build` and try again.";
+  }
+
   if (/status code: 402|insufficient|quota|credit/i.test(detail)) {
     return `Every configured AI provider refused the request for billing reasons. Top one up or add another key. (${detail})`;
   }

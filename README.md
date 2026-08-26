@@ -27,16 +27,20 @@ bun run db:migrate
 
 Create a `.env` with the variables below before the first run.
 
-Run the app and the Inngest dev server side by side:
+Run everything with:
 
 ```bash
 bun run dev
-bun run inngest
 ```
 
+That starts the Next.js dev server and the Inngest dev server together. Builds
+are dispatched as Inngest events, so without the Inngest dev server every
+project creation fails with `Could not reach the Inngest server`. Use
+`bun run dev:next` if you want Next.js on its own.
+
 The agents run inside an E2B template that has to be built once before the
-first project. Without it every build fails with `template 'nextjs-developer'
-not found`:
+first project. Without it every build fails with `template
+'zivo-nextjs-developer' not found`:
 
 ```bash
 bun run sandbox:build
@@ -170,12 +174,36 @@ Optional:
 - `ARCJET_KEY` — request protection. Without it every guard allows the request.
 - `IMAGEKIT_PUBLIC_KEY` / `IMAGEKIT_PRIVATE_KEY` — profile photo uploads. Without
   them the upload button reports that uploads are not configured.
+- `E2B_TEMPLATE_ID` — build sandboxes from a different template than the
+  `zivo-nextjs-developer` alias, e.g. a `-dev` build.
+- `E2B_SANDBOX_TIMEOUT_MS` — how long a sandbox lives. Moves the server only;
+  the client still estimates expiry from `SANDBOX_TTL_MS`, so change both
+  together or previews will look alive after they are gone.
+
+### Deploying
+
+Two variables are local-development-only and must **not** reach production:
+
+- `INNGEST_DEV` — set to `1` locally so the SDK talks to the dev server on
+  `localhost:8288`. Left set in production, every build is dispatched into
+  nothing. Production instead needs `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY`
+  from the Inngest dashboard.
+- `BETTER_AUTH_URL` — must be the deployed origin, and each OAuth app needs that
+  origin's callback URL registered.
+
+The E2B template is account-scoped, so build it once against the same
+`E2B_API_KEY` production uses:
+
+```bash
+bun run sandbox:build
+```
 
 ## Scripts
 
 ```bash
-bun run dev        # Next.js dev server
-bun run inngest    # Inngest dev server
+bun run dev        # Next.js + Inngest dev servers together
+bun run dev:next   # Next.js dev server on its own
+bun run inngest    # Inngest dev server on its own
 bun run build      # production build
 bun run lint       # eslint
 bun run db:generate

@@ -17,6 +17,25 @@ You write the whole feature, you make it look designed, and you finish.
   radix-ui package and installing one will not help.
 - The dev server is already running on port 3000 with hot reload.
 
+### Base UI is not Radix — \`asChild\` does not exist
+
+This is the single most common way these builds break. Radix's \`asChild\` prop
+is not implemented by Base UI. Passing it is a type error and the page 500s.
+
+To render a component as a different element, pass that element to \`render\`:
+
+  WRONG: <DialogClose asChild><Button>Close</Button></DialogClose>
+  RIGHT: <DialogClose render={<Button />}>Close</DialogClose>
+
+  WRONG: <DialogTrigger asChild><Button>Open</Button></DialogTrigger>
+  RIGHT: <DialogTrigger render={<Button />}>Open</DialogTrigger>
+
+The \`render\` element carries the props; children stay on the outer component.
+The same rule applies to every trigger, close, and menu item in "@/components/ui".
+When you are unsure of a component's API, readFiles it from
+"/home/user/components/ui/<name>.tsx" before using it — the real signature is
+right there.
+
 ## Tools
 
 - createOrUpdateFiles — takes an array of files, so batch related files into a
@@ -37,6 +56,10 @@ default_api prefixes.
 - "@" is an import alias only. Never pass "@" to readFiles or any filesystem
   operation.
 - Import "cn" from "@/lib/utils". "@/components/ui/utils" does not exist.
+- Imports between files you wrote must match where you wrote them. If you write
+  "app/types.ts" and "app/badge.tsx", the import in badge.tsx is "./types", not
+  "../types" — "../types" resolves outside app/ and the page 500s. Prefer the
+  "@/" alias for anything outside the current directory.
 
 ## Runtime rules
 

@@ -21,6 +21,7 @@ import {
 
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { Fragment } from "@/db/schema";
 import { SANDBOX_TTL_MS } from "@/features/inngest/constants";
 import { formatRelativeTime } from "@/lib/format";
@@ -35,9 +36,25 @@ type Device = (typeof DEVICES)[number]["value"];
 
 function PreviewToolbar({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 px-3">
+    <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border/60 bg-elevated/40 px-3">
       {children}
     </div>
+  );
+}
+
+/**
+ * Stand-in for the address bar before there is a URL to show.
+ *
+ * The empty state used to render a filled grey pill here, which reads as a
+ * skeleton that never resolved. A dashed outline reads as a slot waiting to be
+ * filled, which is what it actually is.
+ */
+function AddressBarPlaceholder({ label }: { label: string }) {
+  return (
+    <span className="flex h-7 items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-2.5 font-mono text-[11px] text-muted-foreground">
+      <Spinner className="size-3" />
+      {label}
+    </span>
   );
 }
 
@@ -110,6 +127,49 @@ function useSandboxExpired(createdAt: Date | string | null) {
   );
 }
 
+/**
+ * A suggestion of the browser window the app will eventually render in.
+ *
+ * The empty state used to be a 12px logo at 15% opacity centred in whatever
+ * space the pane had, which on a wide monitor is an enormous emptiness holding
+ * one grey sentence. Giving the copy a frame to sit inside bounds it, and the
+ * frame doubles as a picture of what the pane is for.
+ */
+function BrowserFrame({
+  isBuilding,
+  children,
+}: {
+  isBuilding?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-border bg-elevated shadow-xl shadow-black/10">
+      <div className="flex items-center gap-1.5 border-b border-border/60 px-3 py-2.5">
+        {[0, 1, 2].map((dot) => (
+          <span
+            key={dot}
+            aria-hidden
+            className="size-2 rounded-full bg-muted-foreground/30"
+          />
+        ))}
+        <span
+          aria-hidden
+          className={cn(
+            "ml-1.5 h-2 flex-1 rounded-full",
+            isBuilding
+              ? "animate-pulse bg-muted-foreground/25"
+              : "bg-muted-foreground/10",
+          )}
+        />
+      </div>
+
+      <div className="flex flex-col items-center gap-2.5 px-6 py-10 text-center">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function PanelMessage({
   icon,
   title,
@@ -137,11 +197,13 @@ export function PreviewPanel({
   fragment,
   projectId,
   leading,
+  isBuilding,
   onViewCode,
 }: {
   fragment: Fragment | null;
   projectId: string;
   leading?: React.ReactNode;
+  isBuilding?: boolean;
   onViewCode?: () => void;
 }) {
   const [reloadKey, setReloadKey] = useState(0);
@@ -150,17 +212,52 @@ export function PreviewPanel({
 
   if (!fragment) {
     return (
-      <div className="flex h-full min-h-0 flex-col bg-muted/20">
+      <div className="flex h-full min-h-0 flex-col bg-background">
         <PreviewToolbar>
           {leading}
-          <span className="h-7 flex-1 rounded-lg bg-muted/50" />
+          {isBuilding ? (
+            <AddressBarPlaceholder label="starting the sandbox…" />
+          ) : null}
         </PreviewToolbar>
 
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-          <Logo className="size-12 opacity-15" />
-          <p className="text-sm text-muted-foreground">
-            Your preview will appear here.
-          </p>
+        {/* Same grid language as the marketing pages, centred on the frame, so
+            an idle pane reads as a prepared surface rather than a void. */}
+        <div className="relative flex min-h-0 flex-1 items-center justify-center p-6">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-[0.05] dark:opacity-[0.08]"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
+              backgroundSize: "64px 64px",
+              maskImage:
+                "radial-gradient(ellipse 60% 60% at 50% 50%, black 20%, transparent 75%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 60% 60% at 50% 50%, black 20%, transparent 75%)",
+            }}
+          />
+
+          <BrowserFrame isBuilding={isBuilding}>
+            {isBuilding ? (
+              <>
+                <Spinner className="size-5 text-muted-foreground" />
+                <p className="text-sm font-medium">Building your app</p>
+                <p className="max-w-xs text-[13px] leading-relaxed text-muted-foreground">
+                  The agent is writing files in a sandbox. The preview loads
+                  here the moment it serves a page — follow along in the chat.
+                </p>
+              </>
+            ) : (
+              <>
+                <Logo className="size-7 opacity-40" />
+                <p className="text-sm font-medium">No preview yet</p>
+                <p className="max-w-xs text-[13px] leading-relaxed text-muted-foreground">
+                  Describe what you want to build in the chat. Zivo runs it in a
+                  live sandbox and renders it right here.
+                </p>
+              </>
+            )}
+          </BrowserFrame>
         </div>
       </div>
     );
@@ -181,7 +278,7 @@ export function PreviewPanel({
 
   if (isExpired) {
     return (
-      <div className="flex h-full min-h-0 flex-col bg-muted/20">
+      <div className="flex h-full min-h-0 flex-col bg-background">
         <PreviewToolbar>
           {leading}
           <span className="min-w-0 flex-1" />
@@ -228,7 +325,7 @@ export function PreviewPanel({
   const width = DEVICES.find((entry) => entry.value === device)?.width ?? null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-muted/20">
+    <div className="flex h-full min-h-0 flex-col bg-background">
       <PreviewToolbar>
         {leading}
 

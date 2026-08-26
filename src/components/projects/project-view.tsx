@@ -110,6 +110,7 @@ export function ProjectView({
     <PreviewPanel
       fragment={activeFragment}
       projectId={projectId}
+      isBuilding={isBuilding}
       onViewCode={() => setMobileView("code")}
     />
   );
@@ -124,6 +125,7 @@ export function ProjectView({
         fragment={activeFragment}
         projectId={projectId}
         leading={tabs}
+        isBuilding={isBuilding}
         onViewCode={() => setPane("code")}
       />
     );
@@ -163,14 +165,19 @@ export function ProjectView({
   }
 
   return (
-    <div className="flex h-[calc(100svh-3.5rem)] min-h-0 flex-col">
+    <div className="flex h-[calc(100svh-3.5rem)] min-h-0 flex-col bg-canvas">
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
         <ResizablePanel defaultSize="26%" minSize="20%" maxSize="42%">
-          {chatPanel}
+          <div className="h-full min-h-0 bg-background">{chatPanel}</div>
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel defaultSize="74%" minSize="40%">
-          {workspacePane}
+          {/* Inset so the pane reads as a surface sitting on the canvas. */}
+          <div className="h-full min-h-0 p-3 pl-1.5">
+            <div className="h-full min-h-0 overflow-hidden rounded-xl border border-border shadow-lg shadow-black/5">
+              {workspacePane}
+            </div>
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
