@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { BUILD_WINDOW_MS } from "@/features/inngest/constants";
 import { unwrap } from "@/lib/action-result";
 import {
   createMessage,
@@ -11,8 +12,6 @@ import {
 } from "../actions";
 
 const POLL_INTERVAL_MS = 3000;
-
-const BUILD_WINDOW_MS = 20 * 60 * 1000;
 
 export type BuildState = "idle" | "building" | "stalled";
 

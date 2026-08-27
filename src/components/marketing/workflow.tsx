@@ -1,15 +1,15 @@
 const STEPS = [
   {
     title: "Describe it",
-    body: "One paragraph is enough. Mention the screens, the data, and how it should feel. Vague prompts get sensible defaults instead of questions.",
+    body: "A name is enough. A line about what it does is better. A line about how it should feel — dark and calm, dense and precise, editorial — is best, and is taken as an instruction rather than a hint.",
   },
   {
-    title: "Agents build it",
-    body: "A coding agent plans the files, installs what it needs, and writes the app. A second pass names the result and summarises what changed.",
+    title: "A direction is chosen",
+    body: "An agent decides what the product actually is, then commits to one of eight design directions and a single accent hue. That decision fixes the type, the radius, the density, and the signature move before a screen exists.",
   },
   {
-    title: "Keep going",
-    body: "Open the preview, read the code, then ask for the next change. Every turn lands in the same project with the same file tree.",
+    title: "Then built in it",
+    body: "Six screens, each against a real phone frame, all holding the same direction. Open the preview, tap any screen to walk through it, and download the source.",
   },
 ];
 
@@ -20,7 +20,7 @@ export function Workflow() {
       className="mx-auto w-full max-w-5xl scroll-mt-20 border-t border-border/60 px-5 py-20"
     >
       <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">
-        Three steps, then a URL
+        A description, then a design
       </h2>
 
       <ol className="mt-10 grid gap-8 sm:grid-cols-3">

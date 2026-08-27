@@ -13,9 +13,7 @@ import {
   Copy,
   Download,
   ExternalLink,
-  Monitor,
   RotateCw,
-  Smartphone,
   TimerOff,
 } from "lucide-react";
 
@@ -26,13 +24,6 @@ import type { Fragment } from "@/db/schema";
 import { SANDBOX_TTL_MS } from "@/features/inngest/constants";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-const DEVICES = [
-  { value: "desktop", label: "Desktop", icon: Monitor, width: null },
-  { value: "mobile", label: "Mobile", icon: Smartphone, width: 420 },
-] as const;
-
-type Device = (typeof DEVICES)[number]["value"];
 
 function PreviewToolbar({ children }: { children: React.ReactNode }) {
   return (
@@ -207,7 +198,6 @@ export function PreviewPanel({
   onViewCode?: () => void;
 }) {
   const [reloadKey, setReloadKey] = useState(0);
-  const [device, setDevice] = useState<Device>("desktop");
   const isExpired = useSandboxExpired(fragment?.createdAt ?? null);
 
   if (!fragment) {
@@ -216,7 +206,7 @@ export function PreviewPanel({
         <PreviewToolbar>
           {leading}
           {isBuilding ? (
-            <AddressBarPlaceholder label="starting the sandbox…" />
+            <AddressBarPlaceholder label="preparing the canvas…" />
           ) : null}
         </PreviewToolbar>
 
@@ -241,19 +231,20 @@ export function PreviewPanel({
             {isBuilding ? (
               <>
                 <Spinner className="size-5 text-muted-foreground" />
-                <p className="text-sm font-medium">Building your app</p>
+                <p className="text-sm font-medium">Designing your app</p>
                 <p className="max-w-xs text-[13px] leading-relaxed text-muted-foreground">
-                  The agent is writing files in a sandbox. The preview loads
-                  here the moment it serves a page — follow along in the chat.
+                  The agent is scoping the product and laying out its screens.
+                  They appear here as soon as the design renders — follow along
+                  in the chat.
                 </p>
               </>
             ) : (
               <>
                 <Logo className="size-7 opacity-40" />
-                <p className="text-sm font-medium">No preview yet</p>
+                <p className="text-sm font-medium">No design yet</p>
                 <p className="max-w-xs text-[13px] leading-relaxed text-muted-foreground">
-                  Describe what you want to build in the chat. Zivo runs it in a
-                  live sandbox and renders it right here.
+                  Name an app in the chat. Zivo designs its screens and lays
+                  them out right here.
                 </p>
               </>
             )}
@@ -263,6 +254,11 @@ export function PreviewPanel({
     );
   }
 
+  // Pinned to the fragment on screen, not to whatever is newest. The pane can
+  // be showing an earlier build, and a download button that quietly hands back
+  // different code than the preview above it is worse than no button.
+  const downloadHref = `/api/projects/${projectId}/download?fragment=${fragment.id}`;
+
   const downloadButton = (
     <Button
       variant="ghost"
@@ -270,7 +266,7 @@ export function PreviewPanel({
       aria-label="Download source as ZIP"
       title="Download source as ZIP"
       nativeButton={false}
-      render={<a href={`/api/projects/${projectId}/download`} download />}
+      render={<a href={downloadHref} download />}
     >
       <Download />
     </Button>
@@ -304,9 +300,7 @@ export function PreviewPanel({
                 variant="outline"
                 size="sm"
                 nativeButton={false}
-                render={
-                  <a href={`/api/projects/${projectId}/download`} download />
-                }
+                render={<a href={downloadHref} download />}
               >
                 <Download data-icon="inline-start" />
                 Download ZIP
@@ -314,41 +308,18 @@ export function PreviewPanel({
             </>
           }
         >
-          Sandboxes shut down about 15 minutes after a build, and this one ran{" "}
-          {formatRelativeTime(fragment.createdAt)}. Every file it wrote is still
-          here — ask for a change in the chat to build and run it again.
+          Sandboxes shut down about 15 minutes after a design is made, and this
+          one ran {formatRelativeTime(fragment.createdAt)}. Every screen it
+          designed is still here — ask for a change in the chat to run it again.
         </PanelMessage>
       </div>
     );
   }
 
-  const width = DEVICES.find((entry) => entry.value === device)?.width ?? null;
-
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <PreviewToolbar>
         {leading}
-
-        <div className="flex items-center rounded-lg bg-muted/60 p-0.5">
-          {DEVICES.map((entry) => (
-            <button
-              key={entry.value}
-              type="button"
-              onClick={() => setDevice(entry.value)}
-              aria-pressed={device === entry.value}
-              aria-label={entry.label}
-              title={entry.label}
-              className={cn(
-                "flex size-6 items-center justify-center rounded-md transition-colors",
-                device === entry.value
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <entry.icon className="size-3.5" />
-            </button>
-          ))}
-        </div>
 
         <AddressBar url={fragment.sandboxUrl} />
 
@@ -378,21 +349,15 @@ export function PreviewPanel({
         </Button>
       </PreviewToolbar>
 
-      <div
-        className={cn(
-          "flex min-h-0 flex-1",
-          width && "justify-center overflow-auto p-4",
-        )}
-      >
+      {/* No device switcher: the design is already a canvas of phone frames,
+          so a second frame around it would be a phone inside a phone. The pane
+          gives it the full width and the design decides its own scale. */}
+      <div className="flex min-h-0 flex-1">
         <iframe
-          key={`${reloadKey}-${device}`}
+          key={reloadKey}
           src={fragment.sandboxUrl}
           title={fragment.title}
-          style={width ? { width, maxWidth: "100%" } : undefined}
-          className={cn(
-            "min-h-0 flex-1 border-0 bg-background",
-            width && "flex-none rounded-xl border border-border/60 shadow-2xl",
-          )}
+          className="min-h-0 flex-1 border-0 bg-background"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         />
       </div>

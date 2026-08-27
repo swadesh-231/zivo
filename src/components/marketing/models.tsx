@@ -19,12 +19,14 @@ export function Models() {
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center">
         <div>
           <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">
-            One key away from a different model
+            Your keys, routed by job
           </h2>
           <p className="text-balance-pretty mt-3 text-sm leading-relaxed text-muted-foreground">
-            Zivo picks the first provider it finds a key for, and you can pin a
-            specific one per agent. Use a fast model to name fragments and a
-            strong one to write the code.
+            The design agent gets the strongest model you have a key for,
+            because the design is the product. The three short agents — brief,
+            title, reply — go to a fast one, which also keeps them off the
+            design agent&rsquo;s rate limit. Add a key and Zivo routes to it; pin any
+            role by hand.
           </p>
         </div>
 

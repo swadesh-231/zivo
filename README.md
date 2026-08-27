@@ -1,9 +1,34 @@
 # Zivo
 
-Zivo turns a prompt into a running Next.js app. A coding agent plans the files,
-installs packages, and boots a dev server inside an isolated E2B sandbox. You
-get a live preview URL, every file the agent wrote, and a chat thread to keep
-iterating.
+Zivo turns a description into a mobile app design.
+
+Type `Lumen`, or `a sleep tracker, dark and calm`, or a paragraph. An agent
+decides what the product actually is, **commits to one of eight design
+directions**, and picks the single hue everything derives from. A second agent
+designs six screens in that direction against a real phone frame inside an
+isolated E2B sandbox. You get an overview canvas of the whole app, a focus mode
+you can tap through, every file it wrote, and a chat thread to keep iterating.
+
+Anything you say about the look is taken as an instruction, not a hint.
+
+## Why it does not look generated
+
+"Make it premium" has no failure condition, so a model asked for it returns the
+safest thing it knows — the grey card stack — and every app comes out looking
+like every other one. Three pieces of structure make that answer unreachable:
+
+- **Directions** (`src/prompt/directions.ts`). Eight named design languages —
+  EDITORIAL, PRECISION, SOFT, UTILITY, DISPLAY, CRAFT, CLINICAL, NOCTURNE — each
+  with parameters rather than adjectives: the type family, the radius, the row
+  density, the one signature move, and a list of things it forbids. The brief
+  commits to one before a screen exists, and it overrides the general rules
+  wherever they disagree.
+- **One hue** (`design/palette.ts` in the sandbox). Every surface, border, and
+  state derives from a single number. An incoherent palette is not something the
+  design can express.
+- **A fixed shell.** The phone frame, status bar, tab bar, canvas, and focus mode
+  ship inside the template. Chrome regenerated per design is chrome that drifts,
+  and that drift is most of what reads as "generated".
 
 ## Stack
 
@@ -39,7 +64,8 @@ project creation fails with `Could not reach the Inngest server`. Use
 `bun run dev:next` if you want Next.js on its own.
 
 The agents run inside an E2B template that has to be built once before the
-first project. Without it every build fails with `template
+first project — and **rebuilt** after any change to the design shell, which ships
+inside it. Without it every design fails with `template
 'zivo-nextjs-developer' not found`:
 
 ```bash
@@ -63,9 +89,17 @@ template contains and how to change it.
 away from the landing page, so the marketing site disappears once you have an
 account.
 
-The project screen is three panels: conversation and live build activity on the
-left, generated source in the middle, running preview on the right. The preview
-toolbar downloads the whole generated project as a ZIP.
+The project screen is two panels: conversation and live design activity on the
+left, and the workspace on the right — the running design, or the source behind
+it. The preview toolbar downloads the fragment you are looking at as a ZIP.
+
+The design itself renders an overview canvas of every screen at once; tapping one
+opens it full size and fully interactive, with the tab bar and back chevrons
+working like a prototype. That chrome — phone frame, status bar, tab bar, canvas,
+focus mode — ships inside the E2B template rather than being written per design,
+so it cannot drift. See
+[`sandbox/next-js-developer`](sandbox/next-js-developer) for the shell and the
+two files the agent is allowed to touch.
 
 Sign-in is OAuth-only, so the provider owns the email address — there is no
 email change or verification flow in Zivo. Signing in with GitHub on an address
@@ -86,8 +120,14 @@ Gemini. Adding a key to `.env` is enough — no code change.
 
 **Failover is automatic.** If the first provider returns a rate limit, a billing
 error, a bad model id, or a malformed tool call, Zivo logs the switch into the
-build activity feed and retries the same work on the next configured key. Only
-when every key has failed does the build report an error.
+activity feed and retries the same work on the next configured key. Only when
+every key has failed does the design report an error.
+
+The check walks the error's `cause` chain, which matters: `step.ai.infer` does
+not make the request in this process — Inngest does, and returns its own wrapper
+with the provider's status underneath. Reading only the top-level message sees
+"error handling generator response" and misses the 429 that decides whether to
+fail over.
 
 Pin a provider or model globally with `AI_PROVIDER` and `AI_MODEL`, or per
 agent role:
@@ -95,12 +135,30 @@ agent role:
 ```bash
 AI_CODE_PROVIDER=anthropic
 AI_CODE_MODEL=claude-sonnet-4-5
+AI_BRIEF_PROVIDER=groq
 AI_TITLE_PROVIDER=groq
 AI_RESPONSE_PROVIDER=groq
 ```
 
-Three agents run per build: the code agent writes the app, a title agent names
-the resulting fragment, and a response agent writes the chat reply.
+A model name only ever applies to the provider it belongs to — the pinned one, or
+the first in the chain if nothing is pinned. Everything behind it falls back to
+its own default, so a failover does not ask Gemini for `gpt-4.1`.
+
+Four agents run per design: a **brief** agent turns the description into a
+product, a direction, and a screen list; the **code** agent designs the screens;
+a **title** agent names the result; a **response** agent writes the chat reply.
+Each has its own `AI_<ROLE>_PROVIDER` / `AI_<ROLE>_MODEL` pair — `AI_BRIEF_*`
+included.
+
+**Roles are routed by job, not by order.** The code agent gets the strongest
+model you have a key for, because the design is the product. The three short
+agents go to the fastest one — which also keeps them off the code agent's
+per-minute token budget, so a 429 there does not take down a run that had three
+healthy keys sitting idle.
+
+The brief agent exists because "Lumen" is not a design brief, and because asking
+one model to design *and* to decide how it should look gets the safest possible
+answer to both.
 
 ### Rate limits
 
@@ -119,7 +177,8 @@ AI_RESPONSE_PROVIDER=groq
 
 Pinning a provider makes it first in the chain; the remaining keys are still used
 as fallbacks. `AI_MAX_HISTORY_MESSAGES` (default 10) caps how much conversation is
-replayed to the agent, and `AI_MAX_ITERATIONS` (default 15) caps the tool loop.
+replayed to the agent, and `AI_MAX_ITERATIONS` (default 40) caps the tool loop —
+six screens designed properly, plus the manifest and a review pass.
 
 ## Request protection
 

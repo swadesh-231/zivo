@@ -13,7 +13,7 @@ import { configuredSocialProviders } from "@/lib/auth-providers";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to Zivo to start building apps from a prompt.",
+  description: "Sign in to Zivo to start designing mobile apps from a name.",
 };
 
 export default async function SignInPage() {
@@ -42,7 +42,7 @@ export default async function SignInPage() {
             Sign in to Zivo
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your projects, previews, and generated source live in one place.
+            Your app designs, screens, and generated source live in one place.
           </p>
         </div>
 

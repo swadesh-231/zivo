@@ -12,6 +12,21 @@ function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * `fragment.id` is a uuid column, so a malformed value does not come back empty
+ * — Postgres raises `invalid input syntax for type uuid` and the route 500s on
+ * what is really a bad request. Anything that is not a uuid is treated as no
+ * selection at all, which lands on the same default as omitting it.
+ */
+function readFragmentId(request: Request) {
+  const value = new URL(request.url).searchParams.get("fragment");
+
+  return value && UUID.test(value) ? value : null;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -43,15 +58,23 @@ export async function GET(
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  const [latest] = await db
+  // Scoped to the project either way, so a fragment id belonging to someone
+  // else's project simply finds nothing.
+  const fragmentId = readFragmentId(request);
+
+  const [selected] = await db
     .select({ files: fragment.files })
     .from(fragment)
     .innerJoin(message, eq(message.id, fragment.messageId))
-    .where(eq(message.projectId, id))
+    .where(
+      fragmentId
+        ? and(eq(message.projectId, id), eq(fragment.id, fragmentId))
+        : eq(message.projectId, id),
+    )
     .orderBy(desc(fragment.createdAt))
     .limit(1);
 
-  const files = latest?.files ?? {};
+  const files = selected?.files ?? {};
   const entries = Object.entries(files).map(([path, content]) => ({
     path,
     content,

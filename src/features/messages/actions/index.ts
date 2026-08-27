@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { getCurrentUser } from "@/features/auth/session";
 import {
+  BUILD_WINDOW_MS,
   INNGEST_UNREACHABLE,
   MAX_PROMPT_LENGTH,
 } from "@/features/inngest/constants";
@@ -38,6 +39,32 @@ async function assertProjectAccess(projectId: string) {
     .limit(1);
 
   return row ? user : null;
+}
+
+/**
+ * Whether a build is already running for this project.
+ *
+ * A trailing USER message means nothing has answered it yet. The composer
+ * already blocks on the same rule, but that is one tab's opinion: a second tab,
+ * a double submit, or a replayed request would otherwise dispatch a concurrent
+ * build onto the same project — two sandboxes billed, two fragments racing to
+ * be "latest", and `reset-events` in the second run wiping the first run's
+ * activity feed out from under whoever is watching it.
+ *
+ * Past the window the build is considered stalled rather than live, which is
+ * exactly when the UI invites the user to send the request again.
+ */
+async function hasLiveBuild(projectId: string) {
+  const [last] = await db
+    .select({ role: message.role, createdAt: message.createdAt })
+    .from(message)
+    .where(eq(message.projectId, projectId))
+    .orderBy(desc(message.createdAt))
+    .limit(1);
+
+  if (last?.role !== MessageRole.USER) return false;
+
+  return Date.now() - last.createdAt.getTime() < BUILD_WINDOW_MS;
 }
 
 export async function getMessages(
@@ -75,6 +102,12 @@ export async function createMessage(
   if (!value) return fail("Describe the change you want.");
   if (value.length > MAX_PROMPT_LENGTH) {
     return fail(`Keep the prompt under ${MAX_PROMPT_LENGTH} characters.`);
+  }
+
+  if (await hasLiveBuild(projectId)) {
+    return fail(
+      "A build is already running for this project. Wait for it to finish.",
+    );
   }
 
   // Every follow-up message triggers another full build.

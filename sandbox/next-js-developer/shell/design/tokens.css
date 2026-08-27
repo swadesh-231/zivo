@@ -1,0 +1,57 @@
+
+/* ── Zivo design shell ─────────────────────────────────────────────────────
+   Appended by the sandbox template. `paletteVars()` sets the custom
+   properties on each phone screen, and this block gives them Tailwind colour
+   names so screens are written as `bg-app-surface`, not `bg-[var(--…)]`.     */
+
+@theme inline {
+  /* Declared in app/layout.tsx. `font-display` is the editorial serif; the
+     directions in src/prompt/directions.ts decide which screen uses which. */
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-display), Georgia, "Times New Roman", serif;
+
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-elevated: var(--app-elevated);
+  --color-app-border: var(--app-border);
+  --color-app-text: var(--app-text);
+  --color-app-muted: var(--app-muted);
+  --color-app-faint: var(--app-faint);
+  --color-app-accent: var(--app-accent);
+  --color-app-accent-fg: var(--app-accent-fg);
+  --color-app-accent-weak: var(--app-accent-weak);
+  --color-app-success: var(--app-success);
+  --color-app-warning: var(--app-warning);
+  --color-app-danger: var(--app-danger);
+}
+
+/* The canvas the phones sit on. Deliberately not app-themed — it is the
+   workspace around the design, not part of it. */
+.zv-canvas {
+  background-color: oklch(0.958 0.002 285);
+  background-image:
+    radial-gradient(oklch(0.878 0.004 285) 1px, transparent 1px);
+  background-size: 24px 24px;
+  /* Explicit, because the workspace does not use the app palette and nothing
+     else sets a colour here. Without it the canvas flips to dark and the
+     titles and screen labels stay black on it. */
+  color: oklch(0.238 0.006 285);
+}
+
+@media (prefers-color-scheme: dark) {
+  .zv-canvas {
+    background-color: oklch(0.178 0.004 285);
+    background-image:
+      radial-gradient(oklch(0.268 0.006 285) 1px, transparent 1px);
+    color: oklch(0.948 0.003 285);
+  }
+}
+
+/* Screens scroll inside the frame; the bar itself is never part of the design. */
+.zv-scroll {
+  scrollbar-width: none;
+}
+.zv-scroll::-webkit-scrollbar {
+  display: none;
+}

@@ -26,20 +26,20 @@ export const metadata: Metadata = {
     template: "%s · Zivo",
   },
   description:
-    "Zivo turns a prompt into a running Next.js app. Describe the interface, watch agents build it in a live sandbox, then keep iterating in chat.",
+    "Zivo turns a description into a mobile app design. Describe the app or the look you want, and agents commit to a design direction and build six screens you can tap through and take away as code.",
   applicationName: "Zivo",
   openGraph: {
     type: "website",
     siteName: "Zivo",
-    title: "Zivo — Build apps by describing them",
+    title: "Zivo — Describe an app, get its design",
     description:
-      "Describe an interface, watch agents build it in a live sandbox, then keep iterating in chat.",
+      "Describe an app and get six mobile screens designed in a committed direction, yours as code.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Zivo — Build apps by describing them",
+    title: "Zivo — Describe an app, get its design",
     description:
-      "Describe an interface, watch agents build it in a live sandbox, then keep iterating in chat.",
+      "Describe an app and get six mobile screens designed in a committed direction, yours as code.",
   },
 };
 

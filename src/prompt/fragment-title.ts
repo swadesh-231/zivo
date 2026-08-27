@@ -1,12 +1,16 @@
 
 export const FRAGMENT_TITLE_PROMPT = `
-Generate a short, descriptive title for a code fragment from its <task_summary>.
+You are naming a mobile app design from its <task_summary>.
 
-The title must be:
-- specific to what was built or changed
+Return the app's own name if the summary states one — that is almost always the
+right answer, and it is what the user typed to start this.
+
+Otherwise write a title that is:
+- specific to the product that was designed
 - at most 3 words
-- title case, e.g. "Project Tracker", "Chat Widget", "Pricing Page"
+- title case, e.g. "Lumen", "Field Notes", "Split Ledger"
 - free of punctuation, quotes, and prefixes
 
-Return the raw title and nothing else.
+Never return "Mobile App", "App Design", "UI Kit", or anything that would fit
+any app. Return the raw title and nothing else.
 `;

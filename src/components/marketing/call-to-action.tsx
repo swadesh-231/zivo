@@ -13,11 +13,11 @@ export function CallToAction() {
           className="pointer-events-none absolute inset-x-0 -top-24 h-48 bg-foreground/[0.06] blur-3xl"
         />
         <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">
-          Your first build takes about two minutes
+          Your first design takes about two minutes
         </h2>
         <p className="text-balance-pretty mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-          Sign in with Google or GitHub, describe a screen, and watch the agents
-          work.
+          Sign in with Google or GitHub, describe what you want, and watch six
+          screens come together in one direction.
         </p>
         <Button
           size="lg"
@@ -25,7 +25,7 @@ export function CallToAction() {
           nativeButton={false}
           render={<Link href={SIGN_IN_PATH} />}
         >
-          Start building
+          Start designing
           <ArrowRight data-icon="inline-end" />
         </Button>
       </div>

@@ -65,7 +65,7 @@ export function MessageComposer({
           }}
           disabled={disabled}
           placeholder={
-            disabled ? "Waiting for the current build…" : "Ask for a change…"
+            disabled ? "Waiting for the current design…" : "Ask for a change…"
           }
           aria-label="Ask for a change"
           // Same as the dashboard composer: let field-sizing grow the box

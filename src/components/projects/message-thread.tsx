@@ -17,7 +17,7 @@ function StalledNotice() {
     <div className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-card/40 px-3.5 py-3 text-[13px] leading-relaxed text-muted-foreground">
       <RotateCw className="mt-0.5 size-3.5 shrink-0" />
       <span>
-        This build never reported back. The sandbox may have timed out or the
+        This design never reported back. The sandbox may have timed out or the
         agent server was unreachable. Send the request again to retry.
       </span>
     </div>

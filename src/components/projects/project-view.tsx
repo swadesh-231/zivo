@@ -40,9 +40,12 @@ export function ProjectView({
 }) {
   const messages = useMessages(projectId);
   const isMobile = useIsMobile();
-  const [selectedFragmentId, setSelectedFragmentId] = useState<string | null>(
-    null,
-  );
+  // Which fragment the user pinned, and which one was newest when they pinned
+  // it. Both halves matter — see `activeFragment`.
+  const [pinned, setPinned] = useState<{
+    fragmentId: string;
+    latestWhenPinned: string | null;
+  } | null>(null);
   const [mobileView, setMobileView] =
     useState<(typeof MOBILE_TABS)[number]["value"]>("chat");
   const [pane, setPane] = useState<WorkspacePane>("preview");
@@ -59,14 +62,30 @@ export function ProjectView({
     [messages.data],
   );
 
+  const latestFragmentId = useMemo(
+    () => fragments.at(-1)?.id ?? null,
+    [fragments],
+  );
+
+  /**
+   * The newest fragment, unless the user pinned an older one.
+   *
+   * The pin is released as soon as a build lands a newer fragment. Holding it
+   * meant that looking back at an earlier version — the one gesture that sets
+   * the pin — quietly redirected every later build into a pane the user was no
+   * longer watching: the chat said the build finished, the preview kept serving
+   * the old sandbox, and nothing on screen explained why. Comparing against the
+   * latest fragment *at pin time* distinguishes "still looking at history" from
+   * "history, then something new arrived".
+   */
   const activeFragment = useMemo(() => {
-    if (selectedFragmentId) {
-      const match = fragments.find((item) => item.id === selectedFragmentId);
+    if (pinned && pinned.latestWhenPinned === latestFragmentId) {
+      const match = fragments.find((item) => item.id === pinned.fragmentId);
       if (match) return match;
     }
 
     return fragments.at(-1) ?? null;
-  }, [fragments, selectedFragmentId]);
+  }, [fragments, latestFragmentId, pinned]);
 
   if (messages.isError) {
     return (
@@ -94,7 +113,7 @@ export function ProjectView({
           buildEvents={events.data ?? []}
           activeFragmentId={activeFragment?.id ?? null}
           onSelectFragment={(fragmentId) => {
-            setSelectedFragmentId(fragmentId);
+            setPinned({ fragmentId, latestWhenPinned: latestFragmentId });
             setMobileView("preview");
           }}
         />

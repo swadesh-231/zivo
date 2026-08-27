@@ -17,8 +17,14 @@ import {
   MessageRole,
   MessageType,
 } from "@/db/schema";
-import { isFailoverError, listModelCandidates, type ModelCandidate } from "@/lib/ai";
 import {
+  isFailoverError,
+  listModelCandidates,
+  type AgentRole,
+  type ModelCandidate,
+} from "@/lib/ai";
+import {
+  APP_BRIEF_PROMPT,
   CODE_AGENT_PROMPT,
   FRAGMENT_TITLE_PROMPT,
   RESPONSE_PROMPT,
@@ -50,7 +56,18 @@ const SANDBOX_TIMEOUT_MS = Number(
   process.env.E2B_SANDBOX_TIMEOUT_MS ?? SANDBOX_TTL_MS,
 );
 
-const MAX_ITERATIONS = Number(process.env.AI_MAX_ITERATIONS ?? 25);
+// Six screens designed properly, plus the manifest and a self-review pass. The
+// old ceiling was set for a single-page app and cut the last screens short.
+const MAX_ITERATIONS = Number(process.env.AI_MAX_ITERATIONS ?? 40);
+
+/**
+ * The manifest the shell reads to know which screens exist.
+ *
+ * A run that writes six beautiful screens and never registers them renders the
+ * workspace's empty state — technically a success, visibly a failure. Checked
+ * by path so the run can say so instead of handing back a blank canvas.
+ */
+const SCREEN_MANIFEST = "design/screens.ts";
 
 const MAX_HISTORY_MESSAGES = Number(process.env.AI_MAX_HISTORY_MESSAGES ?? 10);
 
@@ -120,10 +137,19 @@ async function recordFailure(projectId: string, content: string) {
   });
 }
 
+/**
+ * `announce` is handed the attempt index rather than writing the event itself
+ * because everything in here runs *outside* a step. Inngest re-executes the
+ * handler from the top every time a step resolves, so a bare `emit()` on this
+ * path is not "one build event" — it is one per replay, and a code agent makes
+ * a step per tool call and per inference. Announcing through a step-scoped
+ * callback keyed on the index makes each notice exactly-once and survives the
+ * replay unchanged.
+ */
 async function runWithFailover<T>(
-  projectId: string,
-  role: "code" | "title" | "response",
+  role: AgentRole,
   attempt: (candidate: ModelCandidate, index: number) => Promise<T>,
+  announce: (index: number, label: string, detail?: string) => Promise<unknown>,
 ) {
   const candidates = listModelCandidates(role);
   let lastError: unknown;
@@ -142,9 +168,8 @@ async function runWithFailover<T>(
         throw error;
       }
 
-      await emit(
-        projectId,
-        BuildEventKind.STATUS,
+      await announce(
+        index,
         `${candidate.label} unavailable, switching provider`,
         toolErrorMessage(error).slice(0, 200),
       );
@@ -204,7 +229,7 @@ export const codeAgentFunction = inngest.createFunction(
         .orderBy(desc(message.createdAt))
         .limit(MAX_HISTORY_MESSAGES);
 
-      return rows.reverse().map((row) => ({
+      const history = rows.reverse().map((row) => ({
         type: "text" as const,
         role:
           row.role === MessageRole.ASSISTANT
@@ -212,6 +237,19 @@ export const codeAgentFunction = inngest.createFunction(
             : ("user" as const),
         content: row.content,
       }));
+
+      // The row for the prompt that triggered this build is already the newest
+      // one in the table, and `network.run(value)` appends it again as a fresh
+      // turn. Seeding both puts the same sentence in the transcript twice in a
+      // row, which reads as the user having repeated themselves — and costs a
+      // second copy of it in every request for the rest of the run.
+      const newest = history.at(-1);
+
+      if (newest?.role === "user" && newest.content === value) {
+        history.pop();
+      }
+
+      return history;
     });
 
     const state = createState<CodeAgentState>(
@@ -229,6 +267,24 @@ export const codeAgentFunction = inngest.createFunction(
     // calls replay in the same order.
     let stepSequence = 0;
     const nextStepId = (label: string) => `${++stepSequence}-${label}`;
+
+    // Writes a build event from *outside* a tool step. Everything between the
+    // top-level `step.run` calls re-executes on every replay, so a build event
+    // recorded there has to be wrapped in a step of its own or it is inserted
+    // again on each pass. The id is explicit rather than sequential: this runs
+    // before and between the numbered tool steps, and the two id spaces must
+    // not collide.
+    const emitOnce = (
+      id: string,
+      kind: BuildEventKind,
+      label: string,
+      detail?: string,
+    ) =>
+      step.run(`notice-${id}`, async () => {
+        await emit(projectId, kind, label, detail);
+
+        return null;
+      });
 
     const buildTools = () => [
       createTool({
@@ -337,44 +393,91 @@ export const codeAgentFunction = inngest.createFunction(
       }),
     ];
 
-    const { result: networkResult, candidate: codeCandidate } =
-      await runWithFailover(projectId, "code", async (candidate) => {
-        await emit(
-          projectId,
+    /**
+     * Name to product, before any design happens.
+     *
+     * "Lumen" is not a brief. Asked to design it cold, the code agent picks a
+     * product and hedges on it in the same breath — six screens that would suit
+     * anything, because it never actually committed. One short call that has to
+     * answer "what is this and which six screens" makes the design start from a
+     * decision rather than arrive at one halfway through the third file.
+     */
+    const { result: brief } = await runWithFailover(
+      "brief",
+      async (candidate, index) => {
+        await emitOnce(
+          `brief-${index}`,
           BuildEventKind.THOUGHT,
-          `Planning with ${candidate.label}`,
-          candidate.model,
+          "Scoping the product",
+          candidate.label,
         );
 
-        const codeAgent = createAgent<CodeAgentState>({
-          name: `code-agent-${candidate.provider}`,
-          description: "Builds and edits the application inside the sandbox",
-          system: CODE_AGENT_PROMPT,
+        const agent = createAgent({
+          name: `app-brief-${candidate.provider}`,
+          system: APP_BRIEF_PROMPT,
           model: candidate.create(),
-          tools: buildTools(),
-          lifecycle: {
-            onResponse: async ({ result, network }) => {
-              const text = lastAssistantTextMessageContent(result);
+        });
 
-              if (network && text?.includes("<task_summary>")) {
-                network.state.data.summary = text;
-              }
+        const { output } = await agent.run(value, { step });
 
-              return result;
+        return agentOutputText(output, "");
+      },
+      (index, label, detail) =>
+        emitOnce(`brief-failover-${index}`, BuildEventKind.STATUS, label, detail),
+    );
+
+    const designRequest = brief
+      ? `The user asked for: ${value}\n\n${brief}\n\nDesign this app.`
+      : `Design a mobile app for: ${value}`;
+
+    const { result: networkResult, candidate: codeCandidate } =
+      await runWithFailover(
+        "code",
+        async (candidate, index) => {
+          await emitOnce(
+            `code-${index}`,
+            BuildEventKind.THOUGHT,
+            `Planning with ${candidate.label}`,
+            candidate.model,
+          );
+
+          const codeAgent = createAgent<CodeAgentState>({
+            name: `code-agent-${candidate.provider}`,
+            description: "Builds and edits the application inside the sandbox",
+            system: CODE_AGENT_PROMPT,
+            model: candidate.create(),
+            tools: buildTools(),
+            lifecycle: {
+              onResponse: async ({ result, network }) => {
+                const text = lastAssistantTextMessageContent(result);
+
+                if (network && text?.includes("<task_summary>")) {
+                  network.state.data.summary = text;
+                }
+
+                return result;
+              },
             },
-          },
-        });
+          });
 
-        const network = createNetwork<CodeAgentState>({
-          name: `code-agent-network-${candidate.provider}`,
-          agents: [codeAgent],
-          maxIter: MAX_ITERATIONS,
-          router: async ({ network }) =>
-            network.state.data.summary ? undefined : codeAgent,
-        });
+          const network = createNetwork<CodeAgentState>({
+            name: `code-agent-network-${candidate.provider}`,
+            agents: [codeAgent],
+            maxIter: MAX_ITERATIONS,
+            router: async ({ network }) =>
+              network.state.data.summary ? undefined : codeAgent,
+          });
 
-        return network.run(value, { state });
-      });
+          return network.run(designRequest, { state });
+        },
+        (index, label, detail) =>
+          emitOnce(
+            `code-failover-${index}`,
+            BuildEventKind.STATUS,
+            label,
+            detail,
+          ),
+      );
 
     const summary = extractTaskSummary(networkResult.state.data.summary);
     const files = networkResult.state.data.files ?? {};
@@ -387,8 +490,8 @@ export const codeAgentFunction = inngest.createFunction(
         await recordFailure(
           projectId,
           summary
-            ? "The agent finished without writing any files. Try describing the app in more detail."
-            : "The agent stopped before it could write anything. Try again, or add more detail about the app you want.",
+            ? "The agent finished without designing any screens. Try adding a line about what the app should do."
+            : "The agent stopped before it could design anything. Try again, or add a line about what the app should do.",
         );
 
         return null;
@@ -397,13 +500,24 @@ export const codeAgentFunction = inngest.createFunction(
       return { status: "failed" as const };
     }
 
+    // Screens that were never registered render the workspace's empty state:
+    // every file is there, and the preview shows nothing. Worth calling out
+    // separately from a run that simply stopped early.
+    const wroteManifest = paths.some(
+      (path) => path.replace(/^\.?\//, "") === SCREEN_MANIFEST,
+    );
+
     // Files exist but no <task_summary>: the agent ran out of iterations, or its
     // final message was cut off. The sandbox is running and the code is real, so
     // keep the work instead of throwing it away — the user can iterate from it.
-    const isComplete = Boolean(summary);
+    const isComplete = Boolean(summary) && wroteManifest;
+
     const resolvedSummary =
-      summary ||
-      `The build stopped before the agent reported back, after writing ${paths.length} file(s): ${paths.slice(0, 8).join(", ")}. The app may be unfinished.`;
+      summary && wroteManifest
+        ? summary
+        : summary
+          ? `${summary}\n\nThe screens were never registered in ${SCREEN_MANIFEST}, so the preview cannot show them yet.`
+          : `The design stopped before the agent reported back, after writing ${paths.length} file(s): ${paths.slice(0, 8).join(", ")}. It may be unfinished.`;
 
     await step.run("summarise", async () => {
       if (isComplete) {
@@ -413,11 +527,18 @@ export const codeAgentFunction = inngest.createFunction(
           `Built with ${codeCandidate.label}`,
           codeCandidate.model,
         );
+      } else if (!wroteManifest) {
+        await emit(
+          projectId,
+          BuildEventKind.ERROR,
+          `No screens were registered in ${SCREEN_MANIFEST}`,
+          `${paths.length} file(s) saved. Ask to register the screens to see them.`,
+        );
       } else {
         await emit(
           projectId,
           BuildEventKind.ERROR,
-          "Build stopped early — keeping what was written",
+          "Design stopped early — keeping what was written",
           `${paths.length} file(s) saved. Ask for a change to continue.`,
         );
       }
@@ -426,7 +547,6 @@ export const codeAgentFunction = inngest.createFunction(
     });
 
     const { result: fragmentTitle } = await runWithFailover(
-      projectId,
       "title",
       async (candidate) => {
         const agent = createAgent({
@@ -439,10 +559,16 @@ export const codeAgentFunction = inngest.createFunction(
 
         return agentOutputText(output, "Untitled");
       },
+      (index, label, detail) =>
+        emitOnce(
+          `title-failover-${index}`,
+          BuildEventKind.STATUS,
+          label,
+          detail,
+        ),
     );
 
     const { result: responseText } = await runWithFailover(
-      projectId,
       "response",
       async (candidate) => {
         const agent = createAgent({
@@ -457,9 +583,16 @@ export const codeAgentFunction = inngest.createFunction(
           output,
           isComplete
             ? "Here is what I built for you."
-            : "The build stopped early, but the files it wrote are saved below. Ask for a change to keep going.",
+            : "The design stopped early, but every file is saved below. Ask for a change to keep going.",
         );
       },
+      (index, label, detail) =>
+        emitOnce(
+          `response-failover-${index}`,
+          BuildEventKind.STATUS,
+          label,
+          detail,
+        ),
     );
 
     const sandboxUrl = await step.run("get-sandbox-url", async () => {

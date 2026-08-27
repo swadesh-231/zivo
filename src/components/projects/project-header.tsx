@@ -45,7 +45,7 @@ export function ProjectHeader({
             isBuilding ? "animate-pulse bg-emerald-500" : "bg-muted-foreground/40",
           )}
         />
-        {isBuilding ? "Building" : "Ready"}
+        {isBuilding ? "Designing" : "Ready"}
       </span>
     </div>
   );

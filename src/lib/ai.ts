@@ -1,7 +1,7 @@
 import { anthropic, gemini, grok, openai } from "@inngest/agent-kit";
 import type { AiAdapter } from "@inngest/ai";
 
-export type AgentRole = "code" | "title" | "response";
+export type AgentRole = "brief" | "code" | "title" | "response";
 
 type ProviderKind = "openai" | "anthropic" | "gemini" | "grok";
 
@@ -88,13 +88,31 @@ const PROVIDERS: readonly ProviderDefinition[] = [
 ];
 
 const ROLE_ENV: Record<AgentRole, { provider: string; model: string }> = {
+  brief: { provider: "AI_BRIEF_PROVIDER", model: "AI_BRIEF_MODEL" },
   code: { provider: "AI_CODE_PROVIDER", model: "AI_CODE_MODEL" },
   title: { provider: "AI_TITLE_PROVIDER", model: "AI_TITLE_MODEL" },
   response: { provider: "AI_RESPONSE_PROVIDER", model: "AI_RESPONSE_MODEL" },
 };
 
-const ROLE_PREFERRED_PROVIDER: Partial<Record<AgentRole, string>> = {
-  code: "openai",
+/**
+ * Which providers each role should reach for, best first.
+ *
+ * Two jobs. The obvious one is quality: the design the code agent produces *is*
+ * the product, so it gets the strongest reasoning model available and the cheap
+ * fast ones queue up behind it as fallbacks.
+ *
+ * The less obvious one is isolation. A coding agent replays its system prompt,
+ * its tool definitions, and the whole history on every iteration, so it eats a
+ * per-minute token budget fast. Pointing the three short agents at a different
+ * provider keeps them off that budget — otherwise the brief and the response
+ * queue behind the same 429 that is already throttling the design, and one
+ * rate-limited key takes down a run that had three healthy keys sitting idle.
+ */
+const ROLE_PREFERENCE: Partial<Record<AgentRole, readonly string[]>> = {
+  code: ["anthropic", "openrouter", "openai", "gemini", "groq"],
+  brief: ["groq", "gemini", "openrouter", "openai"],
+  title: ["groq", "gemini", "openrouter", "openai"],
+  response: ["groq", "gemini", "openrouter", "openai"],
 };
 
 function readKey(envKeys: readonly string[]) {
@@ -129,14 +147,21 @@ function orderedProviders(role: AgentRole) {
   );
 
   if (!requested) {
-    const preferred = ROLE_PREFERRED_PROVIDER[role];
-    const match = preferred
-      ? configured.find((provider) => provider.name === preferred)
-      : undefined;
+    const preference = ROLE_PREFERENCE[role];
 
-    if (!match) return configured;
+    if (!preference) return configured;
 
-    return [match, ...configured.filter((provider) => provider !== match)];
+    // Stable sort: anything named in the preference list comes first in that
+    // order, and providers it does not mention keep their PROVIDERS order
+    // behind them rather than being dropped. Every configured key stays in the
+    // chain — the list only decides who is asked first.
+    const rank = (provider: ProviderDefinition) => {
+      const index = preference.indexOf(provider.name);
+
+      return index === -1 ? preference.length : index;
+    };
+
+    return [...configured].sort((a, b) => rank(a) - rank(b));
   }
 
   const pinned = findProvider(requested);
@@ -150,16 +175,39 @@ function orderedProviders(role: AgentRole) {
   return [pinned, ...configured.filter((p) => p.name !== pinned.name)];
 }
 
-function resolveModelName(role: AgentRole, provider: ProviderDefinition) {
-  const pinned =
-    process.env[ROLE_ENV[role].provider] ?? process.env.AI_PROVIDER;
+/**
+ * A model name belongs to exactly one provider, so it can only ever apply to
+ * one link in the failover chain.
+ *
+ * Applying it to all of them is worse than doing nothing: with AI_MODEL set and
+ * no provider pinned, failing over from OpenAI asks Gemini for "gpt-4.1", which
+ * 404s the way an unreachable provider does. Every fallback then "fails" in
+ * turn and the build reports that no provider accepted the request, when in
+ * fact none was ever asked for a model it has.
+ *
+ * Pinned provider: the model is that provider's, and it is always index 0.
+ * No pin: the model describes whatever is tried first. Everything behind the
+ * head falls back to its own default, which is the point of having one.
+ */
+function resolveModelName(
+  role: AgentRole,
+  provider: ProviderDefinition,
+  index: number,
+) {
+  const pinned = (
+    process.env[ROLE_ENV[role].provider] ?? process.env.AI_PROVIDER
+  )
+    ?.trim()
+    .toLowerCase();
   const explicit = process.env[ROLE_ENV[role].model] ?? process.env.AI_MODEL;
 
-  if (explicit && (!pinned || pinned.toLowerCase() === provider.name)) {
-    return explicit;
+  if (!explicit) return provider.defaultModel;
+
+  if (pinned) {
+    return pinned === provider.name ? explicit : provider.defaultModel;
   }
 
-  return provider.defaultModel;
+  return index === 0 ? explicit : provider.defaultModel;
 }
 
 function buildAdapter(provider: ProviderDefinition, model: string, apiKey: string) {
@@ -209,8 +257,8 @@ export function listModelCandidates(role: AgentRole = "code"): ModelCandidate[] 
     );
   }
 
-  return providers.map((provider) => {
-    const model = resolveModelName(role, provider);
+  return providers.map((provider, index) => {
+    const model = resolveModelName(role, provider, index);
     const apiKey = readKey(provider.envKeys) as string;
 
     return {
@@ -225,9 +273,48 @@ export function listModelCandidates(role: AgentRole = "code"): ModelCandidate[] 
 const FAILOVER_PATTERN =
   /\b(4\d\d|5\d\d)\b|rate.?limit|quota|insufficient|credit|unauthorized|invalid.?api.?key|not.?found|overloaded|unavailable|timeout|ECONNRESET|ETIMEDOUT|MALFORMED_FUNCTION_CALL/i;
 
-export function isFailoverError(error: unknown) {
-  const message =
-    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+/**
+ * Flatten an error into everything worth matching against, following `cause`.
+ *
+ * `step.ai.infer` does not make the request in this process — Inngest does, and
+ * hands back its own error with the provider's message underneath. Reading only
+ * `error.message` sees the wrapper ("error handling generator response") and
+ * misses the "unsuccessful status code: 429" that decides whether this is worth
+ * failing over. That failure mode is silent and expensive: the run gives up on
+ * a rate limit with three healthy keys still untried.
+ */
+function errorText(error: unknown, depth = 0): string {
+  if (error == null || depth > 4) return "";
+  if (typeof error === "string") return error;
+  if (typeof error === "number") return String(error);
 
-  return FAILOVER_PATTERN.test(message);
+  if (error instanceof Error) {
+    return `${error.name} ${error.message} ${errorText(error.cause, depth + 1)}`;
+  }
+
+  if (typeof error === "object") {
+    const record = error as Record<string, unknown>;
+
+    return [
+      record.message,
+      record.error,
+      record.name,
+      record.code,
+      record.status,
+      record.statusCode,
+      errorText(record.cause, depth + 1),
+    ]
+      .map((value) =>
+        typeof value === "string" || typeof value === "number"
+          ? String(value)
+          : "",
+      )
+      .join(" ");
+  }
+
+  return "";
+}
+
+export function isFailoverError(error: unknown) {
+  return FAILOVER_PATTERN.test(errorText(error));
 }

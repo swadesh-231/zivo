@@ -101,7 +101,7 @@ export function ProjectList() {
             <EmptyDescription>
               {query
                 ? "Try a different name."
-                : "Describe an app above and the agents will build the first version."}
+                : "Name an app above and the agents will design its screens."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

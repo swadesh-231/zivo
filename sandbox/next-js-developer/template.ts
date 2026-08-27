@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 import { Template, waitForURL } from "e2b";
 
 /**
@@ -55,6 +57,43 @@ const promoteScaffold = [
 ].join(" && ");
 
 /**
+ * The design shell: phone frame, status bar, tab bar, overview canvas, focus
+ * mode, and the hue-derived palette.
+ *
+ * It ships in the image rather than being written per build on purpose. Chrome
+ * regenerated from a prompt is chrome that drifts — the clock lands two pixels
+ * off, the tab labels change weight, the safe area is right on four screens and
+ * wrong on the fifth. Baking it in costs the agent nothing and removes the
+ * largest single source of "looks generated" from the output. It also means the
+ * agent's whole iteration budget goes into screen design instead of bezels.
+ *
+ * Kept in sync with `src/prompt/code-agent.ts`, which describes this exact
+ * surface to the model.
+ */
+const SHELL_MODULES = [
+  "app-meta.ts",
+  "canvas.tsx",
+  "chrome.tsx",
+  "frame.tsx",
+  "index.ts",
+  "navigation.tsx",
+  "palette.ts",
+  "screens.ts",
+  "types.ts",
+];
+
+/**
+ * Tailwind v4 reads its palette from `@theme`, so the shell's colour tokens
+ * have to live in the stylesheet shadcn already generated rather than beside
+ * the components that use them. Appended, then removed, so the sandbox has one
+ * source of truth for them instead of two that can disagree.
+ */
+const installTokens = [
+  "cat /tmp/tokens.css >> app/globals.css",
+  "rm /tmp/tokens.css",
+].join(" && ");
+
+/**
  * Fail the build here rather than publish a template whose sandboxes come up
  * without an app in them. Each path is one the agent is told it can rely on.
  */
@@ -65,9 +104,13 @@ const verifyLayout = [
   "lib/utils.ts",
   "components.json",
   "package.json",
+  "design/canvas.tsx",
+  "design/chrome.tsx",
+  "design/screens.ts",
 ]
   .map((file) => `test -f ${file}`)
-  .concat("test -d components/ui")
+  .concat("test -d components/ui", "test -d app/screens")
+  .concat("grep -q -- '--color-app-accent' app/globals.css")
   .join(" && ");
 
 /**
@@ -96,7 +139,11 @@ const prewarm = [
   "if [ $STATUS -ne 0 ]; then cat /tmp/prewarm.log; exit 1; fi",
 ].join(" ");
 
-export const template = Template()
+export const template = Template({
+  // Resolved from this file rather than the shell's cwd, so `bun run
+  // sandbox:build` works from anywhere in the repo.
+  fileContextPath: fileURLToPath(new URL(".", import.meta.url)),
+})
   .fromBunImage(BUN_IMAGE)
   .setEnvs({
     // Keeps the build and every sandbox from phoning home, and keeps the
@@ -112,6 +159,19 @@ export const template = Template()
   .runCmd(`bunx --bun shadcn@${SHADCN_VERSION} add -a -y -o`)
   .runCmd(promoteScaffold)
   .setWorkdir(HOME)
+  .runCmd(`mkdir -p ${HOME}/design ${HOME}/app/screens`)
+  .copyItems([
+    ...SHELL_MODULES.map((file) => ({
+      src: `shell/design/${file}`,
+      dest: `${HOME}/design/`,
+    })),
+    { src: "shell/design/tokens.css", dest: "/tmp/" },
+    // Replaces what create-next-app scaffolded: the whole app is the design
+    // workspace, and the marketing splash it ships with is not part of it.
+    { src: "shell/app/page.tsx", dest: `${HOME}/app/` },
+    { src: "shell/app/layout.tsx", dest: `${HOME}/app/` },
+  ])
+  .runCmd(installTokens)
   .runCmd(verifyLayout)
   .runCmd(prewarm)
   .setStartCmd(

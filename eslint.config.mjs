@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Sandbox source, not app source — it compiles against the generated
+    // project's module graph, not this one. See tsconfig.json.
+    "sandbox/next-js-developer/shell/**",
   ]),
 ]);
 

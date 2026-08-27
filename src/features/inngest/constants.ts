@@ -19,3 +19,11 @@ export const INNGEST_UNREACHABLE =
  * client keeps estimating from this default.
  */
 export const SANDBOX_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * How long a project is assumed to still be building after its last user
+ * message. The client uses it to keep the composer disabled and the activity
+ * feed polling; `createMessage` uses the same number to refuse a second
+ * concurrent build, so the two never disagree about whether a build is live.
+ */
+export const BUILD_WINDOW_MS = 20 * 60 * 1000;

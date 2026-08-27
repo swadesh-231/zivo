@@ -8,7 +8,7 @@ import { PROMPT_PARAM, readPrompt } from "@/prompt/handoff";
 
 export const metadata: Metadata = {
   title: "Projects",
-  description: "Your Zivo projects and previews.",
+  description: "Your Zivo app designs.",
 };
 
 function firstName(name: string) {
@@ -32,11 +32,11 @@ export default async function DashboardPage({
       <div className="mx-auto w-full max-w-6xl px-5 pt-10 pb-16 sm:pt-14">
         <div className="mx-auto max-w-2xl text-center">
           <h1 className="text-2xl font-medium tracking-tight text-balance sm:text-3xl">
-            What are we building, {firstName(user.name)}?
+            What are we designing, {firstName(user.name)}?
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Describe a screen or a whole app. The agents scaffold it, run it,
-            and hand back the source.
+            Name it, describe it, or describe the look you want. Zivo commits
+            to a design direction and builds six mobile screens in it.
           </p>
 
           <div className="mt-6">

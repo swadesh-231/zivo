@@ -1,25 +1,25 @@
-import { Boxes, FileCode2, MessagesSquare, Terminal } from "lucide-react";
+import { Boxes, FileCode2, MessagesSquare, Palette } from "lucide-react";
 
 const ITEMS = [
   {
-    icon: Terminal,
-    title: "A real machine, not a snippet",
-    body: "Every build gets its own micro-VM. The agents run bun install, write files, and boot next dev. If the preview renders, the code actually runs.",
-  },
-  {
-    icon: FileCode2,
-    title: "The source ships with the preview",
-    body: "Browse every file the agents touched next to the running app. Nothing is hidden behind a black box you cannot inspect.",
-  },
-  {
-    icon: MessagesSquare,
-    title: "Iterate in conversation",
-    body: "Follow-up messages patch the same project. The agents get the full history and the files they already wrote, so changes stay surgical.",
+    icon: Palette,
+    title: "It commits to a direction",
+    body: "Editorial, precision, utility, nocturne — eight design languages with real parameters: type family, radius, density, and the one signature move. The brief picks one and every screen holds it. That commitment is the difference between a design and a template.",
   },
   {
     icon: Boxes,
-    title: "Whichever model you trust",
-    body: "Anthropic, OpenAI, Gemini, Groq, DeepSeek, Mistral, OpenRouter, Cerebras, xAI. Add a key to the environment and Zivo routes to it.",
+    title: "One hue, one coherent palette",
+    body: "Every surface, border, and state derives from a single hue chosen for the product. An incoherent palette is not something the design can express — it is ruled out by the token system, not by asking nicely.",
+  },
+  {
+    icon: FileCode2,
+    title: "Real screens, real code",
+    body: "The design runs in a micro-VM as an actual Next.js app. Tap through it, then read or download every file behind it. Nothing is a flat image and nothing is hidden.",
+  },
+  {
+    icon: MessagesSquare,
+    title: "Refine in conversation",
+    body: "Ask for a warmer palette, a denser list, a different home screen. Follow-ups patch the same design with the full history and the files already written, so changes stay surgical.",
   },
 ];
 
@@ -31,11 +31,13 @@ export function Capabilities() {
     >
       <div className="max-w-xl">
         <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">
-          Built for the part after the first prompt
+          Why it does not look generated
         </h2>
         <p className="text-balance-pretty mt-3 text-muted-foreground">
-          Generating a screen is easy. Keeping it running, editable, and honest
-          about what it produced is the hard part.
+          Anything can produce six rounded cards on a grey page. Producing six
+          screens that look like one designer made them, on purpose, is the
+          hard part — so most of Zivo is structure that makes the generic
+          answer impossible to reach for.
         </p>
       </div>
 
